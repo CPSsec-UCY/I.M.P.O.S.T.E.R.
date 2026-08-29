@@ -9,6 +9,7 @@ weather, and exposes start / stop / select for the (future) fleet dashboard.
 
 from __future__ import annotations
 
+import os
 import time
 
 from simulation.protocols import ProtocolHub
@@ -76,7 +77,14 @@ class SimulationManager:
     def _add(self, id, label, kind, plant, ports):
         hub = ProtocolHub(plant, ports["modbus"], ports["iec104"],
                           goose_gateway_port=ports["goose"])
-        mqtt = MqttPublisher(ports["mqtt"])
+        mqtt = MqttPublisher(
+            ports["mqtt"],
+            broker=os.environ.get("MQTT_BROKER", "localhost"),
+            port=int(os.environ.get("MQTT_PORT", "1883")),
+            enabled=os.environ.get("MQTT_ENABLED", "true").lower() != "false",
+            username=os.environ.get("MQTT_USERNAME"),
+            password=os.environ.get("MQTT_PASSWORD"),
+        )
         sim = Simulator(id, label, kind, plant, hub, mqtt, ports)
         self.sims[id] = sim
         self.order.append(id)

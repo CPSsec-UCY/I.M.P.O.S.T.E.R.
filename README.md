@@ -1,13 +1,42 @@
-# IMPOSTER
+<<<<<<< HEAD
+# <Project Name>
 
-**I**ndustrial **M**odelling & **P**rotocol **S**imulation **T**estbed for **O**perator Training, **E**ducation & **R**esearch
+Short description of the project.
+
+## Governance and Policies
+
+This repository follows the organisation governance standards. Please read:
+
+- License: [LICENSE](./LICENSE)
+- Code of Conduct: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+
+## Maintainers
+
+- Owner name: 
+- Owner email: 
+
+> Replace blank owner fields during repository initialization.
+
+## Quick Start
+
+Add project-specific setup and usage instructions here.
+
+## Required Post-Initialization Updates
+
+Before first release, update all of the following:
+
+1. Replace `<Project Name>` with the real project title.
+2. Replace the short description with project-specific purpose.
+3. Fill owner name and owner email.
+4. Verify `LICENSE` is the approved organisation license text.
+5. Verify `CODE_OF_CONDUCT.md` points to the approved organisation code.
+=======
+# Industrial Simulator Ecosystem
 
 > Licensed under the EUPL &middot; A multi-plant digital-twin control centre with
 > real OT protocol emulation, for academic research and OT operator training.
-> (Codename: *IMPOSTER* — because every simulator in here is a convincing imposter
-> of a real plant.)
 
-**IMPOSTER** — the *Industrial Simulator Ecosystem* — is a control-room environment that runs
+The **Industrial Simulator Ecosystem** is a control-room environment that runs
 several physically-grounded plant simulators at once and exposes them through the
 same industrial protocols a real site would use (Modbus TCP, IEC 60870-5-104,
 IEC 61850 GOOSE and MQTT). A web HMI renders an **immersive, plant-specific
@@ -162,8 +191,8 @@ per plant kind and runs the animation loop (rotors, flow lines, flames, bubbles)
 ### Installation
 
 ```bash
-git clone https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R..git
-cd I.M.P.O.S.T.E.R.
+git clone https://github.com/CPSsec-UCY/industrial_ecosystem.git
+cd industrial_ecosystem
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -180,6 +209,53 @@ The app starts all four simulators, binds their protocol ports, and serves the
 HMI. Use the profile selector to switch between real EAC PV configurations and
 the **SIM / LIVE** toggle to switch between the fast simulation clock and
 wall-clock time.
+
+---
+
+## Docker
+
+The whole platform is containerised: a single image bundles the Flask HMI, all
+four simulators, and their protocol listeners. An optional MQTT broker is
+provided via `docker-compose`.
+
+### Build & run (recommended)
+
+```bash
+docker compose up --build
+# HMI:        http://localhost:5000/
+# Fleet view: http://localhost:5000/dashboard
+```
+
+This starts the app and an Eclipse Mosquitto broker; the app publishes live
+snapshots to `mqtt://mqtt:1883` on topics `sim/#`.
+
+### Run the app only (no broker)
+
+```bash
+docker compose up --build imposter     # MQTT best-effort disabled
+```
+
+### Plain `docker run`
+
+```bash
+docker build -t imposter .
+docker run -p 5000:5000 -p 5020-5023:5020-5023 \
+  -p 2404-2407:2404-2407 -p 5880-5883:5880-5883 imposter
+```
+
+### Exposed ports
+
+| Service | Port(s) |
+|---------|---------|
+| Web HMI / REST API | 5000 |
+| Modbus TCP | 5020 (PV) · 5021 (Water) · 5022 (Wind) · 5023 (Oil & Gas) |
+| IEC 60870-5-104 | 2404 · 2405 · 2406 · 2407 |
+| GOOSE gateway | 5880 · 5881 · 5882 · 5883 |
+| MQTT broker | 1883 |
+
+All simulator protocols are TCP. To point the app at a different broker, set the
+`MQTT_BROKER` / `MQTT_PORT` / `MQTT_ENABLED` environment variables (e.g. in
+`docker-compose.yml`).
 
 ---
 
@@ -276,9 +352,9 @@ If you use this simulator in teaching or research, please cite:
 ```bibtex
 @misc{industrial_simulator_ecosystem,
   title  = {Industrial Simulator Ecosystem: Multi-Plant Digital Twins with OT Protocol Emulation},
-  author = {CPSsec-UCY},
+  author = {Vasilis Ieropoulos},
   year   = {2026},
-  note   = {https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R.},
+  note   = {https://github.com/CPSsec-UCY/industrial_ecosystem},
   licence = {EUPL-1.2}
 }
 ```
@@ -289,3 +365,4 @@ If you use this simulator in teaching or research, please cite:
 
 Built by the CPSsec-UCY group for cyber-physical security education and
 operator training. Weather data by [Open-Meteo](https://open-meteo.com).
+>>>>>>> 93b0a80 (Initial commit: multi-plant industrial simulator ecosystem with OT protocol emulation and immersive HMI)

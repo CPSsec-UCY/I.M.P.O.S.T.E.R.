@@ -1,0 +1,51 @@
+# IMPOSTER deployment.
+#   docker compose up --build      # app + MQTT broker
+#   docker compose up imposter     # app only (MQTT best-effort disabled)
+#
+# All simulator protocols are plain TCP and are exposed on their dedicated ports:
+#   Web HMI / REST API : 5000
+#   Modbus TCP         : 5020 (pv) 5021 (water) 5022 (wind) 5023 (oil&gas)
+#   IEC 60870-5-104    : 2404        2405          2406         2407
+#   GOOSE gateway      : 5880        5881          5882         5883
+#   MQTT broker        : 1883
+
+services:
+  imposter:
+    build: .
+    image: cpssec/imposter:latest
+    container_name: imposter
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+      - "5020-5023:5020-5023"
+      - "2404-2407:2404-2407"
+      - "5880-5883:5880-5883"
+    environment:
+      - MQTT_BROKER=mqtt
+      - MQTT_PORT=1883
+      - MQTT_ENABLED=true
+    depends_on:
+      - mqtt
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:5000/api/state', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - imposter-net
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: imposter-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - imposter-net
+
+networks:
+  imposter-net:
+    driver: bridge

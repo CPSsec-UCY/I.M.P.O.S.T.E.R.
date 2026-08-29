@@ -1,0 +1,21 @@
+name: Repository compliance
+
+on:
+  pull_request:
+  push:
+    branches: ["main", "master"]
+
+jobs:
+  required-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check LICENSE
+        run: test -f LICENSE || (echo "LICENSE missing" && exit 1)
+
+      - name: Check CODE_OF_CONDUCT
+        run: test -f CODE_OF_CONDUCT.md || (echo "CODE_OF_CONDUCT.md missing" && exit 1)
+
+      - name: Check README
+        run: test -f README.md || (echo "README.md missing" && exit 1)
