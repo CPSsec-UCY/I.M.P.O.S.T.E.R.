@@ -1,9 +1,13 @@
-# Industrial Simulator Ecosystem
+# IMPOSTER
+
+**I**ndustrial **M**odelling & **P**rotocol **S**imulation **T**estbed for **O**perator Training, **E**ducation & **R**esearch
 
 > Licensed under the EUPL &middot; A multi-plant digital-twin control centre with
 > real OT protocol emulation, for academic research and OT operator training.
+> (Codename: *IMPOSTER* — because every simulator in here is a convincing imposter
+> of a real plant.)
 
-The **Industrial Simulator Ecosystem** is a control-room environment that runs
+**IMPOSTER** — the *Industrial Simulator Ecosystem* — is a control-room environment that runs
 several physically-grounded plant simulators at once and exposes them through the
 same industrial protocols a real site would use (Modbus TCP, IEC 60870-5-104,
 IEC 61850 GOOSE and MQTT). A web HMI renders an **immersive, plant-specific
@@ -158,8 +162,8 @@ per plant kind and runs the animation loop (rotors, flow lines, flames, bubbles)
 ### Installation
 
 ```bash
-git clone https://github.com/CPSsec-UCY/industrial_ecosystem.git
-cd industrial_ecosystem
+git clone https://github.com/CPSsec-UCY/imposter.git
+cd imposter
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -274,7 +278,7 @@ If you use this simulator in teaching or research, please cite:
   title  = {Industrial Simulator Ecosystem: Multi-Plant Digital Twins with OT Protocol Emulation},
   author = {CPSsec-UCY},
   year   = {2026},
-  note   = {https://github.com/CPSsec-UCY/industrial_ecosystem},
+  note   = {https://github.com/CPSsec-UCY/imposter},
   licence = {EUPL-1.2}
 }
 ```
