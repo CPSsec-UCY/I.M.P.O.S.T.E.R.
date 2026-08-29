@@ -59,7 +59,7 @@
           ["Eff", fmt(u.eff * 100, 0) + "%"], ["V", fmt(u.v_ac, 0) + " V"],
         ],
       },
-      controls: ["run", "clear", "scale", "hour", "curtail", "scenario", "grid", "cloud", "trip", "export"],
+      controls: ["run", "clear", "scale", "hour", "curtail", "scenario", "cloud", "grid", "trip", "export"],
       kpi: (s) => {
         const p = s.plant, e = s.env, g = s.grid;
         return [
@@ -99,7 +99,7 @@
           ["Role", (u.kind || "Pump")], ["Eff", fmt((u.eff || 0) * 100, 0) + "%"],
         ],
       },
-      controls: ["run", "clear", "scale", "hour", "curtail", "grid", "trip", "export"],
+      controls: ["run", "clear", "scale", "hour", "demand", "chlorine", "grid", "trip", "export"],
       kpi: (s) => {
         const p = s.plant, e = s.env, g = s.grid, m = p.metrics || {};
         const online = (p.inverters || []).filter((u) => u.available).length;
@@ -140,7 +140,7 @@
           ["Nacelle", fmt(u.temp, 0) + "°"], ["V", fmt(u.v_phase, 0) + " V"],
         ],
       },
-      controls: ["run", "clear", "scale", "hour", "curtail", "grid", "trip", "export"],
+      controls: ["run", "clear", "scale", "hour", "wind", "curtail", "grid", "trip", "export"],
       kpi: (s) => {
         const p = s.plant, e = s.env, g = s.grid, m = p.metrics || {};
         return [
@@ -181,7 +181,7 @@
           ["Lift P", fmt(u.p_ac_kw, 1) + " kW"], ["Head T", fmt(u.temp, 0) + "°"],
         ],
       },
-      controls: ["run", "clear", "scale", "hour", "curtail", "grid", "trip", "export"],
+      controls: ["run", "clear", "scale", "hour", "choke", "grid", "trip", "export"],
       kpi: (s) => {
         const p = s.plant, e = s.env, g = s.grid, m = p.metrics || {};
         return [
@@ -194,6 +194,33 @@
           { accent: "assets", label: "WELLS ONLINE", value: m.wells_online + "/" + m.wells_total, unit: "", sub: "Producing" },
         ];
       },
+    },
+  };
+
+  KINDS.custom = {
+    title: "CUSTOM PLANT HMI",
+    sub: (s) => s.name,
+    site: (s) => `Configurable industrial training plant · ${fmt(s.lat, 2)}°N ${fmt(s.lon, 2)}°E`,
+    icon: '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 21V9h5v12m2 0V3h5v18m2 0v-8h2v8M2 21h20" fill="none" stroke="#79c8ff" stroke-width="2"/></svg>',
+    chart: { title: "Process Power — Today", series: [{ key: "p_ac", name: "Active Power", unit: "MW", color: "#2f9be6", area: true }] },
+    viz: { title: "Configured Device Line" },
+    unit: {
+      name: (u) => u.name,
+      status: (u) => (u.available ? { ok: true, label: "RUN" } : { ok: false, label: u.fault || "STOP" }),
+      bar: (u) => clamp(u.load || 0, 0, 100),
+      metrics: (u) => [["Vendor", u.vendor || "Generic"], ["Model", u.model || "Device"], ["P", fmt(u.p_ac_kw, 1) + " kW"], ["Load", fmt(u.load, 0) + "%"], ["I", fmt(u.i_ac, 0) + " A"], ["Temp", fmt(u.temp, 0) + "°"]],
+    },
+    controls: ["run", "clear", "scale", "hour", "process", "curtail", "grid", "trip", "export"],
+    kpi: (s) => {
+      const p = s.plant, g = s.grid, m = p.metrics || {};
+      return [
+        { accent: "power", label: "PROCESS POWER", value: fmt(p.p_ac_mw, 3), unit: "MW", sub: "Configured device load" },
+        { accent: "assets", label: "DEVICES ONLINE", value: `${m.devices_online || 0}/${m.devices_total || 0}`, unit: "", sub: "Simulated field devices" },
+        { accent: "eff", label: "PROCESS SETPOINT", value: fmt(m.process_setpoint_pct, 0), unit: "%", sub: "Demanded operating level" },
+        { accent: "temp", label: "AMBIENT", value: fmt(s.env.ambient_temp, 1), unit: "°C", sub: "Device enclosure basis" },
+        { accent: "grid", label: "GRID", value: fmt(g.frequency, 2), unit: "Hz", sub: `${fmt(g.voltage_kv, 1)} kV · PF ${fmt(g.power_factor, 2)}` },
+        { accent: "energy", label: "DAILY ENERGY", value: fmt(p.daily_energy_mwh, 2), unit: "MWh", sub: "Accumulated simulated load" },
+      ];
     },
   };
 
@@ -469,8 +496,8 @@
       '<text id="pv-freq" x="860" y="324" class="scene-data sm" style="text-anchor:middle">-- Hz</text>' +
       '<circle cx="906" cy="248" r="18" fill="#0e1a2b" stroke="#3f8fd8" stroke-width="2"/>' +
       '<text x="906" y="252" class="scene-sub" style="text-anchor:middle">GRID</text>' +
-      plcCabinet(356, 296, "pv-plc", "BAY RTU") +
-      `<text id="pv-site-ro" x="20" y="392" class="scene-sub">--</text>` +
+      plcCabinet(356, 286, "pv-plc", "BAY RTU") +
+      `<text id="pv-site-ro" x="20" y="390" class="scene-sub">--</text>` +
       '</svg>';
     host.innerHTML = html;
 
@@ -554,12 +581,12 @@
       '<g id="wiz-wind" stroke="#8fd0ff" stroke-width="2" stroke-linecap="round" opacity="0.35">' +
       [60, 160, 260].map((y) => `<line x1="-40" y1="${y}" x2="30" y2="${y}" id="ws${y}"/>`).join("") + "</g>" +
       '<g id="wiz-turb"></g>' +
-      plcCabinet(872, 300, "wt-plc", "WTG RTU") +
+      plcCabinet(872, 190, "wt-plc", "WTG RTU") +
       '<g>' +
-      '<text x="20" y="350" class="scene-sub" id="wiz-ro1">Hub wind --</text>' +
-      '<text x="250" y="350" class="scene-sub" id="wiz-ro2">Rotor --</text>' +
-      '<text x="470" y="350" class="scene-sub" id="wiz-ro3">Farm -- MW</text>' +
-      '<text x="660" y="350" class="scene-sub" id="wiz-ro4">Online --/--</text>' +
+      '<text x="20" y="376" class="scene-sub" id="wiz-ro1">Hub wind --</text>' +
+      '<text x="250" y="376" class="scene-sub" id="wiz-ro2">Rotor --</text>' +
+      '<text x="470" y="376" class="scene-sub" id="wiz-ro3">Farm -- MW</text>' +
+      '<text x="660" y="376" class="scene-sub" id="wiz-ro4">Online --/--</text>' +
       '</g></svg>';
     host.innerHTML = html;
     const gT = document.getElementById("wiz-turb");
@@ -644,10 +671,10 @@
       '<text id="wvz-level" x="760" y="170" class="scene-data sm">--%</text>' +
       '<text x="760" y="262" class="scene-sub" style="text-anchor:middle">Treated storage</text></g>' +
       '<g id="wvz-flow">' +
-      pipe(110, 175, 170, 175) + pipe(240, 175, 300, 175) + pipe(370, 175, 430, 175) +
-      pipe(500, 175, 560, 175) + pipe(630, 175, 700, 175) +
+      pipe(160, 175, 170, 175) + pipe(290, 175, 306, 175) + pipe(414, 175, 430, 175) +
+      pipe(550, 175, 578, 175) + pipe(662, 175, 700, 175) +
       '</g>' +
-      plcCabinet(872, 300, "wt-plc", "PLANT PLC") +
+      plcCabinet(872, 230, "wt-plc", "PLANT PLC") +
       '<g>' +
       '<text x="20" y="356" class="scene-sub" id="wvz-flow-ro">Flow --</text>' +
       '<text x="300" y="356" class="scene-sub" id="wvz-cl2">Cl₂ --</text>' +
@@ -798,7 +825,7 @@
       '<line class="og-pipe flow" x1="50" y1="250" x2="552" y2="226"/>' +
       ogpipe(575, 226, 600, 168) + ogpipe(691, 198, 676, 244) + ogpipe(742, 270, 896, 100) +
       '</g>' +
-      plcCabinet(820, 300, "og-plc", "WELL RTU") +
+      plcCabinet(820, 204, "og-plc", "WELL RTU") +
       '<g>' +
       '<text x="20" y="356" class="scene-sub" id="og-ro1">Oil --</text>' +
       '<text x="220" y="356" class="scene-sub" id="og-ro2">Gas --</text>' +
@@ -880,6 +907,7 @@
     else if (k === "water") buildWaterSite(snap);
     else if (k === "wind") buildWindSite(snap);
     else if (k === "oilgas") buildOGSite(snap);
+    else if (k === "custom") buildCustomSite(snap);
     $("#viz-title").textContent = KINDS[k].viz.title;
     $("#viz-tag").textContent = "";
   }
@@ -889,6 +917,22 @@
     else if (k === "water") updateWaterSite(snap);
     else if (k === "wind") updateWindSite(snap);
     else if (k === "oilgas") updateOGSite(snap);
+    else if (k === "custom") updateCustomSite(snap);
+  }
+
+  function buildCustomSite(snap) {
+    const host = $("#plant-viz");
+    const devices = snap.plant.inverters || [];
+    host.innerHTML = `<div class="custom-viz">${devices.map((device, index) => `<button class="custom-device" data-custom-unit="${index}"><b>${device.name}</b><span>${device.vendor || "Generic"}</span><small>${device.model || device.kind}</small><i></i></button>`).join("")}</div>`;
+    host.querySelectorAll("[data-custom-unit]").forEach((button) => button.addEventListener("click", () => HMI.tripUnit(Number(button.dataset.customUnit))));
+    updateCustomSite(snap);
+  }
+  function updateCustomSite(snap) {
+    $("#plant-viz").querySelectorAll("[data-custom-unit]").forEach((button) => {
+      const unit = snap.plant.inverters[Number(button.dataset.customUnit)];
+      button.classList.toggle("offline", !unit.available);
+      button.querySelector("i").style.width = `${clamp(unit.load || 0, 0, 100)}%`;
+    });
   }
 
   /* =====================================================================
@@ -920,6 +964,31 @@
         <button class="btn small" data-scenario="cloudy">Cloudy</button>
         <button class="btn small" data-scenario="storm">Storm</button>
       </div>`,
+    cloud: `
+      <label class="ctl-label">Cloud transient</label>
+      <div class="ctl-row"><input type="range" id="cloud-factor" min="10" max="100" step="5" value="30">
+        <button class="btn warn small" id="btn-cloud">INJECT</button></div>
+      <div class="ctl-val"><span id="cloud-factor-val">30%</span> irradiance for 10 min</div>`,
+    demand: `
+      <label class="ctl-label">Treatment demand setpoint</label>
+      <input type="range" id="demand-setpoint" min="25" max="100" step="5" value="75">
+      <div class="ctl-val"><span id="demand-setpoint-val">75%</span> process throughput</div>`,
+    chlorine: `
+      <label class="ctl-label">Chlorine residual target</label>
+      <input type="range" id="chlorine-target" min="0.2" max="2" step="0.1" value="0.9">
+      <div class="ctl-val"><span id="chlorine-target-val">0.9 mg/L</span></div>`,
+    wind: `
+      <label class="ctl-label">Wind-speed injection</label>
+      <input type="range" id="wind-setpoint" min="0" max="30" step="1" value="8">
+      <div class="ctl-val"><span id="wind-setpoint-val">8 m/s</span> at 10 m</div>`,
+    choke: `
+      <label class="ctl-label">Field choke opening</label>
+      <input type="range" id="choke-setpoint" min="0" max="100" step="5" value="100">
+      <div class="ctl-val"><span id="choke-setpoint-val">100%</span> production rate</div>`,
+    process: `
+      <label class="ctl-label">Process load setpoint</label>
+      <input type="range" id="process-load" min="0" max="100" step="5" value="75">
+      <div class="ctl-val"><span id="process-load-val">75%</span> simulated device load</div>`,
     grid: `
       <label class="ctl-label">Inject disturbance</label>
       <div class="ctl-row">
@@ -951,6 +1020,22 @@
         o.value = i; o.textContent = u.name;
         sel.appendChild(o);
       });
+    }
+    const metrics = snap.plant.metrics || {};
+    const setValue = (id, value, label) => {
+      const input = document.getElementById(id), output = document.getElementById(id + "-val");
+      if (input) input.value = value;
+      if (output) output.textContent = label;
+    };
+    if (kind === "water") {
+      setValue("demand-setpoint", metrics.demand_setpoint_pct || 75, (metrics.demand_setpoint_pct || 75) + "%");
+      setValue("chlorine-target", metrics.chlorine_target_mgl || 0.9, (metrics.chlorine_target_mgl || 0.9) + " mg/L");
+    } else if (kind === "wind") {
+      setValue("wind-setpoint", metrics.wind_setpoint_ms || 8, (metrics.wind_setpoint_ms || 8) + " m/s");
+    } else if (kind === "oilgas") {
+      setValue("choke-setpoint", metrics.choke_setting_pct || 100, (metrics.choke_setting_pct || 100) + "%");
+    } else if (kind === "custom") {
+      setValue("process-load", metrics.process_setpoint_pct || 75, (metrics.process_setpoint_pct || 75) + "%");
     }
     bindControls(snap);
   }
@@ -993,6 +1078,24 @@
       b.addEventListener("click", async () => {
         await ctrl("set_scenario", { scenario: b.dataset.scenario }); refresh();
       }));
+    const cloud = $id("#cloud-factor");
+    if (cloud) {
+      cloud.addEventListener("input", (e) => { $id("#cloud-factor-val").textContent = e.target.value + "%"; });
+      $id("#btn-cloud").addEventListener("click", async () => {
+        await ctrl("cloud", { factor: +cloud.value / 100, duration: 600 }); refresh();
+      });
+    }
+    const bindSetpoint = (id, action, key, format) => {
+      const input = $id("#" + id), output = $id("#" + id + "-val");
+      if (!input) return;
+      input.addEventListener("input", (e) => { if (output) output.textContent = format(e.target.value); });
+      input.addEventListener("change", async (e) => { await ctrl(action, { [key]: +e.target.value }); refresh(); });
+    };
+    bindSetpoint("demand-setpoint", "set_demand", "pct", (v) => v + "%");
+    bindSetpoint("chlorine-target", "set_chlorine_target", "mg_l", (v) => v + " mg/L");
+    bindSetpoint("wind-setpoint", "set_wind_speed", "ms", (v) => v + " m/s");
+    bindSetpoint("choke-setpoint", "set_choke", "pct", (v) => v + "%");
+    bindSetpoint("process-load", "set_process_load", "pct", (v) => v + "%");
     const bGrid = $id("#btn-grid");
     if (bGrid) bGrid.addEventListener("click", async () => {
       const faulted = snap && !snap.grid.connected;

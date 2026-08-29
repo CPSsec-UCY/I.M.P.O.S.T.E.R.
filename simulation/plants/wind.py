@@ -29,6 +29,7 @@ class WindPlant(BasePlant):
     def __init__(self, name="Onshore Wind Farm", lat=35.0, lon=33.0,
                  n_units=25, turbine_kw=2500.0, capacity_mwp=None, start_hour=5.5):
         self.turbine_kw = turbine_kw
+        self.wind_override = None
         cap = capacity_mwp if capacity_mwp is not None else n_units * turbine_kw / 1000.0
         super().__init__(name, lat, lon, n_units, cap, start_hour)
 
@@ -51,7 +52,10 @@ class WindPlant(BasePlant):
         hour = self._hour(self.sim_time)
 
         # Wind: real 10 m wind -> hub height, else synthetic gusty wind.
-        if self.weather and self.weather.get("wind_speed_10m") is not None:
+        if self.wind_override is not None:
+            v10 = self.wind_override
+            self.wind = v10
+        elif self.weather and self.weather.get("wind_speed_10m") is not None:
             v10 = float(self.weather["wind_speed_10m"])
             self.wind = v10
         else:
@@ -155,11 +159,16 @@ class WindPlant(BasePlant):
                 "turbines_total": len(self.units),
                 "avg_rpm": round(sum(u["rpm"] for u in self.units if u["available"])
                                  / max(1, sum(1 for u in self.units if u["available"])), 1),
+                "wind_setpoint_ms": round(self.wind, 1),
             },
         }
         self._evaluate_alarms()
 
     # --------------------------------------------------------------- helpers
+    def set_wind_speed(self, ms):
+        self.wind_override = max(0.0, min(30.0, float(ms)))
+        self._compute()
+
     def _ambient(self):
         if self.weather and self.weather.get("temperature_2m") is not None:
             return float(self.weather["temperature_2m"]) + random.uniform(-0.2, 0.2)
@@ -196,17 +205,17 @@ class WindPlant(BasePlant):
         ]
 
         def unit_fn(u):
-            i = u["idx"]
+            base = 40100 + u["idx"] * 10
             return [
-                (40100 + i * 10, f"{u['name']} Active Power", u["p_ac_kw"], "0.1 kW"),
-                (40110 + i * 10, f"{u['name']} Reactive Power", u["q_kvar"], "0.1 kVAr"),
-                (40120 + i * 10, f"{u['name']} Rotor Speed", u["rpm"], "0.1 rpm"),
-                (40130 + i * 10, f"{u['name']} Local Wind", u.get("wind_local", 0.0), "0.1 m/s"),
-                (40140 + i * 10, f"{u['name']} Pitch Angle", u.get("pitch", 0.0), "0.1 deg"),
-                (40150 + i * 10, f"{u['name']} Nacelle Temp", u["temp"], "0.1 C"),
-                (40160 + i * 10, f"{u['name']} Phase Voltage", u["v_phase"], "0.1 V"),
-                (40170 + i * 10, f"{u['name']} Phase Current", u["i_ac"], "0.1 A"),
-                (40180 + i * 10, f"{u['name']} Power Curve %", u["load"], "0.1 %"),
+                (base, f"{u['name']} Active Power", u["p_ac_kw"], "0.1 kW"),
+                (base + 1, f"{u['name']} Reactive Power", u["q_kvar"], "0.1 kVAr"),
+                (base + 2, f"{u['name']} Rotor Speed", u["rpm"], "0.1 rpm"),
+                (base + 3, f"{u['name']} Local Wind", u.get("wind_local", 0.0), "0.1 m/s"),
+                (base + 4, f"{u['name']} Pitch Angle", u.get("pitch", 0.0), "0.1 deg"),
+                (base + 5, f"{u['name']} Nacelle Temp", u["temp"], "0.1 C"),
+                (base + 6, f"{u['name']} Phase Voltage", u["v_phase"], "0.1 V"),
+                (base + 7, f"{u['name']} Phase Current", u["i_ac"], "0.1 A"),
+                (base + 8, f"{u['name']} Power Curve %", u["load"], "0.1 %"),
             ]
 
         return self.build_modbus(summary, unit_fn)

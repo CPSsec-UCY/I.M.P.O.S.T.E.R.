@@ -250,7 +250,7 @@
       else { re.appendChild(tr); equipRegs++; }
     });
     if (state.snap && state.snap.plant) {
-      $("#mb-inv-count").textContent = "(" + (state.snap.plant.inverters || []).length + " units × 9 tags)";
+      $("#mb-inv-count").textContent = "(" + invRegs + " live unit tags)";
     }
     $("#mb-equip-count").textContent = equipRegs + " regs";
     const cb = $("#mb-coils"); cb.innerHTML = "";
@@ -260,6 +260,7 @@
         `<td class="${val ? "tag-ok" : "tag-bad"}">${val ? "ON" : "OFF"}</td>`;
       cb.appendChild(tr);
     });
+    renderIntegration();
   }
 
   // ------------------------------------------------------------------ protocols
@@ -287,6 +288,74 @@
     }
     $("#proto-mbus").textContent = s.plant.daily_energy_mwh.toFixed(1) + " MWh";
     $("#led-mbus").className = "led online";
+    renderIntegration();
+  }
+
+  // ---------------------------------------------------- developer integration
+  function renderIntegration() {
+    const protocolSelect = $("#integration-protocol");
+    const unitSelect = $("#integration-unit");
+    const code = $("#integration-code");
+    const rowsHost = $("#integration-rows");
+    if (!protocolSelect || !unitSelect || !code || !rowsHost || !state.snap || !state.modbus) return;
+
+    const protocols = ["Modbus TCP", "IEC 60870-5-104", "MQTT", "REST API"];
+    const selectedProtocol = protocolSelect.value || protocols[0];
+    protocolSelect.innerHTML = protocols.map((name) => `<option>${name}</option>`).join("");
+    protocolSelect.value = protocols.includes(selectedProtocol) ? selectedProtocol : protocols[0];
+
+    const units = state.snap.plant.inverters || [];
+    const selectedUnit = unitSelect.value || "0";
+    unitSelect.innerHTML = units.map((unit, index) => `<option value="${index}">${unit.name}</option>`).join("");
+    unitSelect.value = units[selectedUnit] ? selectedUnit : "0";
+    const index = Number(unitSelect.value || 0);
+    const unit = units[index];
+    if (!unit) return;
+
+    const protocol = protocolSelect.value;
+    const host = location.hostname || "localhost";
+    const protocolStatus = state.protocols || {};
+    const modbusPort = protocolStatus.modbus?.port || 5020;
+    const iecPort = protocolStatus.iec104?.port || 2404;
+    const registers = state.modbus.holding_registers
+      .filter(([address, name]) => address >= 40100 && address < 41000 && name.startsWith(unit.name))
+      .sort((a, b) => a[0] - b[0]);
+    const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+    const setRows = (items) => {
+      rowsHost.innerHTML = items.map(([tag, translation, value]) =>
+        `<tr><td>${escape(tag)}</td><td>${escape(translation)}</td><td class="raw">${escape(value)}</td></tr>`
+      ).join("");
+    };
+
+    if (protocol === "Modbus TCP") {
+      const offset = registers.length ? registers[0][0] - 40001 : 0;
+      code.textContent = `client = ModbusTcpClient("${host}", port=${modbusPort})\nresponse = client.read_holding_registers(address=${offset}, count=${registers.length}, slave=1)`;
+      setRows(registers.map(([address, name, raw, scale]) => [name, `Holding register ${address} (zero-based offset ${address - 40001}; scale ${scale || "1"})`, raw]));
+    } else if (protocol === "IEC 60870-5-104") {
+      const ioa = 100 + index * 4;
+      code.textContent = `Connect to ${host}:${iecPort}; STARTDT, then send general interrogation (C_IC_NA, common address 1).\nUnit ${unit.name} measured values begin at IOA ${ioa}; commandable equipment begins at IOA 1000.`;
+      setRows([
+        [unit.name + " Active Power", `M_ME_NC IOA ${ioa}`, unit.p_ac_kw + " kW"],
+        [unit.name + " Reactive Power", `M_ME_NC IOA ${ioa + 1}`, unit.q_kvar + " kVAr"],
+        [unit.name + " Phase Current", `M_ME_NC IOA ${ioa + 2}`, unit.i_ac + " A"],
+        [unit.name + " Phase Voltage", `M_ME_NC IOA ${ioa + 3}`, unit.v_phase + " V"],
+      ]);
+    } else if (protocol === "MQTT") {
+      const topic = `sim/${state.snap.kind}/unit/${index}`;
+      code.textContent = `mosquitto_sub -h ${host} -p 1883 -t '${topic}' -v`;
+      setRows(Object.entries(unit).map(([key, value]) => [key, `${topic} JSON field`, typeof value === "object" ? JSON.stringify(value) : value]));
+    } else {
+      const endpoint = `/api/fleet/${state.snap.kind}/state`;
+      code.textContent = `const state = await fetch("${endpoint}").then((response) => response.json());\nconst unit = state.plant.inverters[${index}];`;
+      setRows(Object.entries(unit).map(([key, value]) => [key, `state.plant.inverters[${index}].${key}`, typeof value === "object" ? JSON.stringify(value) : value]));
+    }
+
+    protocolSelect.onchange = renderIntegration;
+    unitSelect.onchange = renderIntegration;
+    const copy = $("#btn-copy-integration");
+    if (copy) copy.onclick = async () => {
+      try { await navigator.clipboard.writeText(code.textContent); copy.textContent = "COPIED"; setTimeout(() => { copy.textContent = "COPY CONFIG"; }, 1200); } catch (e) {}
+    };
   }
 
   // ------------------------------------------------------------------ static UI bindings

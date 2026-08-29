@@ -33,6 +33,8 @@ class WaterPlant(BasePlant):
     def __init__(self, name="Municipal Water Treatment Works", lat=34.88, lon=33.04,
                  n_units=12, capacity_mwp=0.9, start_hour=5.5):
         self._nominal = []
+        self.demand_override = None
+        self.chlorine_target = 0.9
         super().__init__(name, lat, lon, n_units, capacity_mwp, start_hour)
 
     def _init_units(self, n_units):
@@ -53,7 +55,8 @@ class WaterPlant(BasePlant):
 
     def _compute(self):
         hour = self._hour(self.sim_time)
-        demand = self._demand_factor(hour)
+        demand = (self.demand_override if self.demand_override is not None
+                  else self._demand_factor(hour))
 
         if self.weather and self.weather.get("wind_speed_10m") is not None:
             self.wind = max(0.0, float(self.weather["wind_speed_10m"]))
@@ -101,7 +104,7 @@ class WaterPlant(BasePlant):
         inflow = 42000.0 * demand                      # m3/h through the works
         treated = inflow * 0.98
         turbidity = 0.8 + (1 - demand) * 1.5 + random.uniform(-0.1, 0.1)
-        chlorine = 0.9 + random.uniform(-0.05, 0.05)  # mg/L residual
+        chlorine = self.chlorine_target + random.uniform(-0.05, 0.05)
         tank_level = 60.0 + 30.0 * demand + random.uniform(-2, 2)
 
         # Grid --------------------------------------------------------------
@@ -158,11 +161,21 @@ class WaterPlant(BasePlant):
                 "chlorine_residual_mgl": round(chlorine, 2),
                 "tank_level_pct": round(tank_level, 1),
                 "demand_factor": round(demand, 3),
+                "demand_setpoint_pct": round(demand * 100, 0),
+                "chlorine_target_mgl": round(self.chlorine_target, 2),
             },
         }
         self._evaluate_alarms()
 
     # --------------------------------------------------------------- helpers
+    def set_demand(self, pct):
+        self.demand_override = max(0.25, min(1.0, float(pct) / 100.0))
+        self._compute()
+
+    def set_chlorine_target(self, mg_l):
+        self.chlorine_target = max(0.2, min(2.0, float(mg_l)))
+        self._compute()
+
     def _ambient(self):
         if self.weather and self.weather.get("temperature_2m") is not None:
             return float(self.weather["temperature_2m"]) + random.uniform(-0.2, 0.2)
@@ -204,14 +217,14 @@ class WaterPlant(BasePlant):
         ]
 
         def unit_fn(u):
-            i = u["idx"]
+            base = 40100 + u["idx"] * 10
             return [
-                (40100 + i * 10, f"{u['name']} Active Power", u["p_ac_kw"], "0.1 kW"),
-                (40110 + i * 10, f"{u['name']} Reactive Power", u["q_kvar"], "0.1 kVAr"),
-                (40120 + i * 10, f"{u['name']} Phase Current", u["i_ac"], "0.1 A"),
-                (40130 + i * 10, f"{u['name']} Phase Voltage", u["v_phase"], "0.1 V"),
-                (40140 + i * 10, f"{u['name']} Temperature", u["temp"], "0.1 C"),
-                (40150 + i * 10, f"{u['name']} Efficiency", u["eff"], "0.01 %"),
+                (base, f"{u['name']} Active Power", u["p_ac_kw"], "0.1 kW"),
+                (base + 1, f"{u['name']} Reactive Power", u["q_kvar"], "0.1 kVAr"),
+                (base + 2, f"{u['name']} Phase Current", u["i_ac"], "0.1 A"),
+                (base + 3, f"{u['name']} Phase Voltage", u["v_phase"], "0.1 V"),
+                (base + 4, f"{u['name']} Temperature", u["temp"], "0.1 C"),
+                (base + 5, f"{u['name']} Efficiency", u["eff"], "0.01 %"),
             ]
 
         return self.build_modbus(summary, unit_fn)

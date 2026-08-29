@@ -809,17 +809,18 @@ class PVPlant:
             (40014, "DC Power", int(p["p_dc_mw"] * 10), "0.1 MW"),
         ]
         for i, inv in enumerate(self.inverters):
-            regs.append((40100 + i, f"INV-{i+1:02d} Real-time Active Power",
+            base = 40100 + i * 10
+            regs.append((base, f"INV-{i+1:02d} Real-time Active Power",
                          int(inv.p_ac * 10), "0.1 kW"))
-            regs.append((40110 + i, f"INV-{i+1:02d} Real-time Reactive Power",
+            regs.append((base + 1, f"INV-{i+1:02d} Real-time Reactive Power",
                          int(round(inv.q_kvar * 10)), "0.1 kVAr"))
-            regs.append((40120 + i, f"INV-{i+1:02d} Phase B Current",
+            regs.append((base + 2, f"INV-{i+1:02d} Phase B Current",
                          int(inv.i_ac * 10), "0.1 A"))
-            regs.append((40130 + i, f"INV-{i+1:02d} Phase B Voltage",
+            regs.append((base + 3, f"INV-{i+1:02d} Phase B Voltage",
                          int(inv.v_phase * 10), "0.1 V"))
-            regs.append((40140 + i, f"INV-{i+1:02d} Temperature",
+            regs.append((base + 4, f"INV-{i+1:02d} Temperature",
                          int(inv.temp * 10), "0.1 C"))
-            regs.append((40150 + i, f"INV-{i+1:02d} Efficiency",
+            regs.append((base + 5, f"INV-{i+1:02d} Efficiency",
                          int(inv.eff * 100), "0.01 %"))
 
         coils = []

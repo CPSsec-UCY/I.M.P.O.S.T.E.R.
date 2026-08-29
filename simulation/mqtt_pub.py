@@ -112,6 +112,16 @@ class MqttPublisher:
         except Exception as e:
             self.error = str(e)
 
+    def stop(self):
+        self._stop = True
+        self.connected = False
+        if self._client is not None:
+            try:
+                self._client.disconnect()
+                self._client.loop_stop()
+            except Exception:
+                pass
+
     def status(self):
         return {
             "enabled": self.enabled,

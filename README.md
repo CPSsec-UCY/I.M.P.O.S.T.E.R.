@@ -1,213 +1,190 @@
 # IMPOSTER
 
-**I**ndustrial **M**odelling & **P**rotocol **S**imulation **T**estbed for **O**perator Training, **E**ducation & **R**esearch
+### Industrial Modelling & Protocol Simulation Testbed for Operator Training, Education & Research
 
-> Licensed under the EUPL &middot; A multi-plant digital-twin control centre with
-> real OT protocol emulation, for academic research and OT operator training.
-> (Codename: *IMPOSTER* — because every simulator in here is a convincing imposter
-> of a real plant.)
+**A live industrial control centre you can safely break, observe, and run again.**
 
-**IMPOSTER** — the *Industrial Simulator Ecosystem* — is a control-room environment that runs
-several physically-grounded plant simulators at once and exposes them through the
-same industrial protocols a real site would use (Modbus TCP, IEC 60870-5-104,
-IEC 61850 GOOSE and MQTT). A web HMI renders an **immersive, plant-specific
-process view** for each facility — you are effectively standing inside the plant.
+IMPOSTER is an open-source, multi-plant digital-twin environment for cyber-physical security education, OT research, and operator training. It pairs physically grounded plant models with the industrial protocols and control-room workflows people encounter in real operational technology environments.
 
-```
-                 ┌─────────────────────────────────────────────┐
-   Modbus TCP ───┤                                             │
-   IEC 104    ───┤   Simulation Manager  (Flask REST API)     │─── Web HMI (SVG scenes)
-   GOOSE      ───┤      ├─ PV Plant        ├─ Water Works      │     + Fleet dashboard
-   MQTT        ───┤      ├─ Wind Farm      ├─ Oil & Gas         │
-                 └─────────────────────────────────────────────┘
-```
+Run photovoltaic, water-treatment, wind-farm, and oil-and-gas simulations together, or compose your own simulated industrial plant from a visual device inventory. Watch each facility evolve in a dedicated web HMI. Connect external tools through Modbus TCP, IEC 60870-5-104, IEC 61850 GOOSE, and MQTT. Inject faults, operate equipment, acknowledge alarms, and study the consequences without placing a real process at risk.
 
-> **Note on data:** all telemetry is *simulated* by physics-based models and live
-> weather (Open-Meteo, no API key). Nothing here is connected to a real facility.
+> All process data is simulated. IMPOSTER does not connect to production equipment or operational networks.
 
----
+![License: EUPL-1.2](https://img.shields.io/badge/License-EUPL--1.2-0e7c86?style=flat-square)
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square)
+![OT protocols](https://img.shields.io/badge/Protocols-Modbus%20%7C%20IEC%20104%20%7C%20GOOSE%20%7C%20MQTT-b35c35?style=flat-square)
 
-## Table of contents
+## Why IMPOSTER
 
-- [Features](#features)
-- [Plants & physics models](#plants--physics-models)
-- [Industrial protocols](#industrial-protocols)
-- [Architecture](#architecture)
-- [Getting started](#getting-started)
-- [Docker](#docker)
-- [Usage](#usage)
-- [REST API](#rest-api)
-- [Project structure](#project-structure)
-- [Configuration](#configuration)
-- [Security & training notice](#security--training-notice)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [Licence](#licence)
-- [Citation](#citation)
-- [Acknowledgements](#acknowledgements)
+Industrial training environments too often force a trade-off: a rich visual demo with shallow process behaviour, or a protocol endpoint with no meaningful plant behind it. IMPOSTER is built to make that trade-off unnecessary.
 
----
+| What you need | What IMPOSTER provides |
+| --- | --- |
+| A realistic process to reason about | Dynamic, plant-specific models for generation, treatment, flow, pressure, levels, weather, and equipment state |
+| A believable OT surface | Modbus TCP, IEC 60870-5-104, IEC 61850 GOOSE, and MQTT exposed on dedicated ports |
+| An operator's point of view | Animated, plant-specific HMIs, trends, KPIs, alarms, equipment controls, and a fleet dashboard |
+| A safe place to experiment | Simulated telemetry and isolated controls designed for classrooms, research labs, and demonstrations |
 
-## Features
+It is a practical platform for demonstrating how process physics, operator actions, telemetry, protocol traffic, and faults influence each other.
 
-- **Four concurrent plant simulators** sharing one clock and one web console:
-  Photovoltaic (PV), Water Treatment Works, Onshore Wind Farm, Oil & Gas facility.
-- **Physics-based models** (see below) with real solar geometry, turbine power
-  curves, reservoir decline, water-treatment unit processes, etc.
-- **Live weather** per site (latitude/longitude) from Open-Meteo — no API key
-  required — plus a **SIM / LIVE** clock mode.
-- **Real OT protocol emulation** for every simulator, each on its own port set,
-  so standard SCADA/client tools can subscribe exactly as they would to real
-  RTUs/meters.
-- **Immersive, per-plant SVG HMI** (no external JS libraries):
-  - *PV*: tilted solar array field with a cell grid, inverter shelters with
-    status LEDs and spinning fans, MV transformer, grid, RTU cabinet, and an
-    **animated electrical flow line** showing power direction.
-  - *Wind*: a wind farm whose rotors spin at **each turbine's own rpm**
-    (matching local wind speed), with anemometer/rotor read-outs.
-  - *Water*: a P&ID with bar-screen intake, aerated basin (rising bubbles),
-    rotating clarifier bridge, pressure filter vessels, glowing UV reactors
-    and a clear-well level.
-  - *Oil & Gas*: christmas-tree wellheads (clickable master valve), a bullet
-    3-phase separator with oil/gas/water sight-glass, a compressor skid with a
-    spinning flywheel, a manifold and a flickering flare.
-- **Operator interactions**: trip/close/start/stop equipment with semantically
-  correct button labels, supervisory control (curtailment, grid fault,
-  scenarios), click-to-trip units from the diagram, and an alarm log with
-  acknowledge.
-- **Trend chart** (power / irradiance / temperature), **KPI strip**, per-unit
-  cards, and a full **Modbus register-map viewer**.
-- **Fleet dashboard**: overview of all simulators with run/stop-all and
-  per-simulator selection.
-- **Dependency-free front-end** (vanilla JS + CSS) — easy to host and modify.
+## See The Whole Operation
 
----
+One shared simulation manager coordinates a fleet of four facilities, while the browser provides both a fleet-level dashboard and a focused plant HMI.
 
-## Plants & physics models
-
-| Plant | Key model behaviour |
-|-------|---------------------|
-| **PV** | Solar position (elevation/azimuth), plane-of-array irradiance, cell temperature via NOCT, per-inverter efficiency curve, MPPT/DC→AC conversion, clipping & curtailment, per-inverter availability. Real Cyprus EAC configurations (Helios, Dhekelia, Akrotiri, Acheras, Limassol 100 MW). |
-| **Water** | Diurnal demand curve, aeration basin, clarifier (settling), multimedia filtration, UV disinfection, chlorine residual, turbidity, clear-well level dynamics. |
-| **Wind** | Rotor power curve (cut-in / rated / cut-out), rotor rpm, turbulence & gusts, per-turbine local wind speed and wake, capacity factor. |
-| **Oil & Gas** | Reservoir decline, wellhead/christmas-tree behaviour, 3-phase separator split (oil/gas/water cut), compressor, flare, produced-water handling. |
-
-Each simulator produces a coherent `snapshot()` (power, voltages, frequencies,
-flows, levels, alarms, per-unit telemetry) consumed by the protocols and the HMI.
-
----
-
-## Industrial protocols
-
-Every simulator owns a `ProtocolHub` (Modbus TCP / IEC 104 / GOOSE) and an
-`MqttPublisher`, each on a dedicated, non-conflicting port set:
-
-| Plant | Modbus TCP | IEC 60870-5-104 | IEC 61850 GOOSE | MQTT topic |
-|-------|-----------|-----------------|-----------------|------------|
-| PV | 5020 | 2404 | 5880 | `sim/pv` |
-| Water | 5021 | 2405 | 5881 | `sim/water` |
-| Wind | 5022 | 2406 | 5882 | `sim/wind` |
-| Oil & Gas | 5023 | 2407 | 5883 | `sim/oilgas` |
-
-- **Modbus TCP** — holding registers (plant summary, per-unit, equipment) + coils.
-- **IEC 60870-5-104** — SCADA point exchange.
-- **IEC 61850 GOOSE** — trip publication via a gateway listener.
-- **MQTT** — live snapshots on `sim/#` (best-effort; disabled silently if
-  `paho-mqtt` is absent or no broker is reachable).
-
-```bash
-# Subscribe to all telemetry with any standard client
-mosquitto_sub -t 'sim/#' -v
+```text
+                         Web HMI + Fleet Dashboard
+                                   |
+                                   v
+              +------------------------------------------+
+              |          IMPOSTER Simulation Manager      |
+              |       shared clock, scenarios, telemetry  |
+              +------------------------------------------+
+                 |             |             |          |
+                 v             v             v          v
+                Solar PV     Water Works    Wind Farm   Oil & Gas
+                 |             |             |          |
+                 +-------------+-------------+----------+
+                                   |
+                       Custom Plant Builder
+                              |
+               Modbus TCP | IEC 104 | GOOSE | MQTT
+                                   |
+                          Your OT tools and labs
 ```
 
----
+Each plant produces a coherent live snapshot consumed by the HMI and protocol services. The result is not just telemetry to inspect: it is a process you can operate.
 
-## Architecture
+## Four Industrial Worlds
 
-```
-app.py                      Flask REST API + static HMI serving
-simulation/
-  manager.py                SimulationManager: steps all simulators on one clock
-  plants/
-    base.py                 Shared plant base (grid, env, equipment, snapshot)
-    pv_plant.py             PV model
-    water.py  wind.py  oilgas.py   Other plant models
-    equipment.py            Equipment + control mapping
-  profiles.py               Real EAC PV configurations
-  protocols.py              ProtocolHub (Modbus / IEC104 / GOOSE)
-  mqtt_pub.py               Best-effort MQTT publisher
-  live_feed.py              Open-Meteo live weather
-  models/                   Optional ML/forecasting extensions
-templates/                  base.html (HMI), dashboard.html (fleet)
-static/
-  css/  main.css, dashboard.css
-  js/   hmi.js (scene engine), main.js (polling), dashboard.js
-```
+| Facility | What comes alive |
+| --- | --- |
+| **Solar PV** | Solar position, plane-of-array irradiance, temperature, MPPT conversion, inverter efficiency, clipping, curtailment, availability, and real Cyprus EAC profile configurations |
+| **Water Treatment** | Diurnal demand, intake screening, aeration, clarification, filtration, UV disinfection, chlorine residual, turbidity, and clear-well dynamics |
+| **Wind Farm** | Cut-in, rated, and cut-out power behaviour, turbine-specific RPM, local wind variation, turbulence, gusts, wake effects, and capacity factor |
+| **Oil & Gas** | Reservoir decline, wellhead behaviour, three-phase separation, compressor operation, flare activity, and produced-water handling |
 
-The manager steps every *running* simulator, feeds it live fleet capacity
-factor and per-site weather, and pushes register/state updates. The browser
-polls `/api/state` (~1 Hz) and drives `hmi.js`, which renders the correct scene
-per plant kind and runs the animation loop (rotors, flow lines, flames, bubbles).
+The visuals respond to the model rather than merely decorate it: PV power flows, turbine rotors spin at their own RPM, treatment equipment animates with process state, and oil-and-gas equipment reflects active conditions and controls.
 
----
+## Compose Your Own Plant
 
-## Getting started
+The **Options & Integration** workspace at http://localhost:5000/options turns IMPOSTER into a configurable lab builder. Filter a growing device inventory, click or drag a simulated profile onto the plant canvas, then double-click a placed device to adjust its name, rated power, nominal voltage, power factor, operating range, and family.
 
-### Prerequisites
+The inventory includes training profiles for PLCs, RTUs, DCS controllers, variable-frequency drives, protection relays, power meters, flow/level/pressure instrumentation, pumps, compressors, and grid-tied inverters. Current profiles are vendor-labelled to make a classroom or integration lab easier to recognize, including Siemens, ABB, Schneider Electric, Rockwell Automation, Danfoss, Emerson, Honeywell, Yokogawa, Endress+Hauser, VEGA, and WIKA options.
 
-- Python 3.10 or newer
-- `pip` (a virtual environment is recommended)
-- Optional: `paho-mqtt` for MQTT publishing; `mosquitto`/a 104 client for
-  external protocol testing
+Each placed device becomes a live simulated unit. Its configured electrical characteristics feed active power, reactive power, current, voltage, temperature, load, Modbus registers, IEC 104 point offsets, MQTT payloads, REST fields, and start/stop behaviour. Created plants persist locally across restarts and can be opened, stopped, or deleted from the Fleet dashboard.
 
-### Installation
+> Device profiles are open simulated training models. Vendor names identify the intended device category and typical nominal operating data; they are not visual replicas, firmware images, engineering projects, or proprietary protocol implementations.
+
+### Translate Points Before You Integrate
+
+The same Options workspace presents a live protocol translation view for every simulator and unit. Select Modbus TCP, IEC 60870-5-104, MQTT, or REST to inspect live values, addresses, point offsets, topic names, and connection snippets derived from the running plant, rather than from a static document.
+
+## Built For Hands-On Work
+
+**Train operators.** Start, stop, open, close, reset, curtail, acknowledge, and respond to alarms in a control-room-style interface.
+
+**Teach OT security.** Give students a safe target for protocol discovery, traffic inspection, SCADA integration, fault analysis, and incident exercises.
+
+**Prototype research.** Drive the platform with external clients, collect time-series data, compare control strategies, or use it as a repeatable cyber-physical experiment surface.
+
+**Demonstrate systems.** Move beyond slideware: show how a process changes when weather shifts, a grid fault occurs, equipment trips, or an operator takes action.
+
+## Start In Minutes
+
+### Run With Docker
+
+The quickest route launches IMPOSTER together with an Eclipse Mosquitto broker:
 
 ```bash
 git clone https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R..git
 cd I.M.P.O.S.T.E.R.
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Running
-
-```bash
-python3 app.py
-# HMI:        http://localhost:5000/
-# Fleet view: http://localhost:5000/dashboard
-```
-
-The app starts all four simulators, binds their protocol ports, and serves the
-HMI. Use the profile selector to switch between real EAC PV configurations and
-the **SIM / LIVE** toggle to switch between the fast simulation clock and
-wall-clock time.
-
----
-
-## Docker
-
-The whole platform is containerised: a single image bundles the Flask HMI, all
-four simulators, and their protocol listeners. An optional MQTT broker is
-provided via `docker-compose`.
-
-### Build & run (recommended)
-
-```bash
 docker compose up --build
-# HMI:        http://localhost:5000/
-# Fleet view: http://localhost:5000/dashboard
 ```
 
-This starts the app and an Eclipse Mosquitto broker; the app publishes live
-snapshots to `mqtt://mqtt:1883` on topics `sim/#`.
+Open the operator HMI at http://localhost:5000, Fleet Control at http://localhost:5000/dashboard, and the builder plus live protocol translation workspace at http://localhost:5000/options.
 
-### Run the app only (no broker)
+### Run Locally
+
+Requirements: Python 3.10 or newer and `pip`.
 
 ```bash
-docker compose up --build imposter     # MQTT best-effort disabled
+git clone https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R..git
+cd I.M.P.O.S.T.E.R.
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 app.py
 ```
 
-### Plain `docker run`
+MQTT publishing is optional when running locally. It activates automatically when `paho-mqtt` is installed and a broker is reachable.
+
+## Connect Your Tools
+
+Every simulator has its own non-conflicting protocol ports, so external clients can interact with a complete fleet at once.
+
+| Plant | Modbus TCP | IEC 60870-5-104 | IEC 61850 GOOSE | MQTT topic |
+| --- | ---: | ---: | ---: | --- |
+| PV | `5020` | `2404` | `5880` | `sim/pv` |
+| Water | `5021` | `2405` | `5881` | `sim/water` |
+| Wind | `5022` | `2406` | `5882` | `sim/wind` |
+| Oil & Gas | `5023` | `2407` | `5883` | `sim/oilgas` |
+| Custom plants | `5030+` | `2430+` | `5890+` | `sim/<plant-id>` |
+
+```bash
+# Observe every published simulated snapshot
+mosquitto_sub -t 'sim/#' -v
+```
+
+The HMI and REST API are available on port `5000`; the MQTT broker in the default Compose deployment listens on `1883`.
+
+Custom plants receive their own non-conflicting port bundle when created. Publish any custom ports needed outside Docker deliberately; the standard Compose port ranges expose the fixed four-plant fleet by default.
+
+### Protocol Surface
+
+- **Modbus TCP:** live holding registers and coils for plant summaries, unit telemetry, and equipment control.
+- **IEC 60870-5-104:** SCADA point exchange for each simulated facility.
+- **IEC 61850 GOOSE:** trip publication through the plant gateway listener.
+- **MQTT:** best-effort snapshots under `sim/#`, ideal for dashboards, data capture, and lightweight integrations.
+
+## Control The Scenario
+
+From the HMI, select a plant or PV profile, switch between accelerated simulation time and wall-clock operation, and inspect live KPIs, trends, equipment, alarms, and the Modbus map. Controls use process-appropriate language such as `OPEN`, `CLOSE`, `START`, `STOP`, and `RESET`.
+
+Available exercises include equipment trips, inverter availability changes, curtailment, clouds, grid faults, scenario changes, alarm acknowledgement, and fleet-wide start/stop control. Export captured history as CSV through the REST API when you need to take the experiment further.
+
+## REST API At A Glance
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/state` | Active plant snapshot |
+| `GET /api/history` | Recent time-series history |
+| `GET /api/modbus` | Live Modbus register and coil map |
+| `GET /api/protocols` | Protocol listener status |
+| `GET /api/alarms` | Alarm state |
+| `POST /api/control` | Plant-level supervisory actions |
+| `POST /api/equipment/control` | Equipment operation with `{id, value}` |
+| `GET /api/export` | CSV history export |
+| `GET /api/fleet` | Fleet state and active simulator |
+| `POST /api/fleet/start`, `/stop`, `/select`, `/runall`, `/stopall` | Fleet operation |
+| `GET /api/device-catalog` | Available simulated device training profiles |
+| `POST /api/custom-plants` | Create and persist a custom plant from its device list |
+| `DELETE /api/custom-plants/<sid>` | Stop, remove, and delete a custom plant profile |
+
+Per-plant state, Modbus, and equipment access is also available beneath `/api/fleet/<sid>/`, where `<sid>` can be a built-in simulator or a custom plant ID.
+
+## Deploy It Your Way
+
+The Compose stack publishes the HMI, all simulation protocol ports, and MQTT:
+
+```bash
+# Full lab stack: IMPOSTER plus Mosquitto
+docker compose up --build
+
+# Simulator only: MQTT remains best-effort and disabled without a broker
+docker compose up --build imposter
+```
+
+For a standalone container:
 
 ```bash
 docker build -t imposter .
@@ -215,126 +192,47 @@ docker run -p 5000:5000 -p 5020-5023:5020-5023 \
   -p 2404-2407:2404-2407 -p 5880-5883:5880-5883 imposter
 ```
 
-### Exposed ports
+Set `MQTT_BROKER`, `MQTT_PORT`, and `MQTT_ENABLED` to point IMPOSTER at another MQTT deployment.
 
-| Service | Port(s) |
-|---------|---------|
-| Web HMI / REST API | 5000 |
-| Modbus TCP | 5020 (PV) · 5021 (Water) · 5022 (Wind) · 5023 (Oil & Gas) |
-| IEC 60870-5-104 | 2404 · 2405 · 2406 · 2407 |
-| GOOSE gateway | 5880 · 5881 · 5882 · 5883 |
-| MQTT broker | 1883 |
+## Under The Hood
 
-All simulator protocols are TCP. To point the app at a different broker, set the
-`MQTT_BROKER` / `MQTT_PORT` / `MQTT_ENABLED` environment variables (e.g. in
-`docker-compose.yml`).
+```text
+app.py                    Flask application, REST API, and HMI delivery
+simulation/manager.py     Fleet orchestration and shared stepping loop
+simulation/plants/        Plant models, equipment, telemetry, and alarms
+simulation/protocols.py   Modbus TCP, IEC 104, and GOOSE services
+simulation/mqtt_pub.py    MQTT snapshot publishing
+simulation/device_catalog.py  Simulated device training profile inventory
+simulation/custom_profiles.py Local persistence for user-created plant definitions
+simulation/live_feed.py   Open-Meteo weather and live-feed integration
+static/                   HMI scenes, dashboard, styling, and interaction
+templates/                Operator and fleet views
+```
 
----
+PV profiles live in `simulation/profiles.py`; user-created definitions are stored in `data/custom_plants.json`; and protocol-port assignments are managed in `simulation/manager.py`.
 
-## Usage
+## Safety And Scope
 
-- **Switch plant / profile** from the top-bar selector (PV profiles: Helios,
-  Dhekelia, Akrotiri, Acheras, Limassol).
-- **Trip equipment** by clicking a unit on the diagram or using the equipment
-  table; buttons read as the real action (`OPEN`/`CLOSE`/`START`/`STOP`/`RESET`).
-- **Supervisory control**: curtailment, inject grid fault, change scenario.
-- **Watch the flow**: PV power-flow line, wind rotor rpm, separator levels and
-  flare respond live to the model.
-- **Connect a client**: point a Modbus/104/GOOSE/MQTT client at the port table
-  above.
+IMPOSTER is for **academic research, operator training, education, and controlled demonstrations**. It intentionally simulates industrial protocol surfaces, but it must not be deployed on an operational network or exposed to the public internet. It contains no credentials, does not connect to real equipment, and does not reproduce commercial-device firmware or vendor engineering tools.
 
----
+## Contribute
 
-## REST API
-
-| Method & path | Purpose |
-|---------------|---------|
-| `GET /api/state` | Full snapshot of the active simulator |
-| `GET /api/history` | Recent trend history |
-| `GET /api/modbus` | Live Modbus register/coil map |
-| `GET /api/protocols` | Protocol listener status |
-| `GET /api/alarms` | Active alarms |
-| `POST /api/alarm/ack` | Acknowledge an alarm (`{id}` or `"all"`) |
-| `POST /api/control` | Supervisory action (`set_mode`, `set_scenario`, `grid_fault`, `toggle_inverter`, `set_curtailment`) |
-| `GET /api/profiles` · `POST /api/select_profile` | List / switch PV profiles |
-| `GET /api/livefeed` | Live weather feed status |
-| `POST /api/equipment/control` | Control a device (`{id, value}`) |
-| `GET /api/export` | Export CSV timeseries |
-| `GET /api/fleet` · fleet `start`/`stop`/`select`/`runall`/`stopall` | Fleet control |
-| `GET /api/fleet/<sid>/state` · `/modbus` · `/equipment/control` | Per-simulator access |
-
----
-
-## Project structure
-
-See [Architecture](#architecture). Key entry points: `app.py` (backend),
-`static/js/hmi.js` (scene engine), `simulation/manager.py` (orchestration),
-`simulation/plants/*` (physics).
-
----
-
-## Configuration
-
-- **PV profiles** are defined in `simulation/profiles.py` (Cyprus EAC sites).
-  Add a new dictionary entry to register another plant.
-- **Protocol ports** are defined once in `simulation/manager.py` (`_PORTS`);
-  keep them unique per simulator.
-- **Weather** is fetched automatically per `lat`/`lon` in the plant snapshot;
-  no key required. Set `live_mode` via the SIM/LIVE toggle.
-- **MQTT** broker defaults to `localhost:1883` and is optional; override with
-  `MQTT_BROKER` / `MQTT_PORT` / `MQTT_ENABLED`.
-
----
-
-## Security & training notice
-
-This software is **for academic research and OT operator training only**. It
-deliberately emulates industrial protocols but contains **no credentials** and
-connects to **no real equipment**. Do not deploy it on an operational or
-internet-exposed network. The maintainers are not liable for misuse.
-
----
-
-## Roadmap
-
-- Additional plant types (battery energy storage, hydrogen electrolyser).
-- Scenario scripting and replay.
-- Deeper GOOSE/IEC 61850 data-model fidelity.
-- Container / compose deployment for classroom labs.
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions are licensed under the
-EUPL-1.2; Derivative Works must keep the EUPL notice.
-
----
+Whether you want to add a plant model, deepen a protocol implementation, create classroom exercises, or improve the HMI, contributions are welcome. Begin with [CONTRIBUTING.md](CONTRIBUTING.md) and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Licence
 
-Distributed under the **European Union Public Licence v. 1.2 (EUPL-1.2)**.
-See [LICENSE](LICENSE) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+IMPOSTER is distributed under the [European Union Public Licence v. 1.2](LICENSE) (EUPL-1.2). Derivative works must retain the EUPL notice.
 
----
-
-## Citation
-
-If you use this simulator in teaching or research, please cite:
+## Cite IMPOSTER
 
 ```bibtex
 @misc{imposter,
-  title  = {IMPOSTER: Industrial Modelling \& Protocol Simulation Testbed for Operator Training, Education \& Research},
-  author = {Vasilis Ieropoulos},
-  year   = {2026},
-  note   = {https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R.},
+  title   = {IMPOSTER: Industrial Modelling \& Protocol Simulation Testbed for Operator Training, Education \& Research},
+  author  = {Vasilis Ieropoulos},
+  year    = {2026},
+  url     = {https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R.},
   licence = {EUPL-1.2}
 }
 ```
 
----
-
-## Acknowledgements
-
-Built by the CPSsec-UCY group for cyber-physical security education and
-operator training. Weather data by [Open-Meteo](https://open-meteo.com).
+Built by the CPSsec-UCY group. Live weather data is provided by [Open-Meteo](https://open-meteo.com).

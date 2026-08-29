@@ -24,6 +24,7 @@ class OilGasPlant(BasePlant):
                  n_units=20, capacity_mwp=6.0, start_hour=5.5):
         self.reservoir_pressure = 180.0  # bar (declines slowly)
         self.gor = 1.2                    # gas/oil ratio (mmscfd per kbbl/d)
+        self.choke_setting = 100.0
         super().__init__(name, lat, lon, n_units, capacity_mwp, start_hour)
 
     def _init_units(self, n_units):
@@ -66,7 +67,7 @@ class OilGasPlant(BasePlant):
                 u["v_phase"] = 400.0
                 continue
             # production scales with reservoir pressure; small per-well noise
-            f = pf_pressure * random.uniform(0.95, 1.05)
+            f = pf_pressure * (self.choke_setting / 100.0) * random.uniform(0.95, 1.05)
             oil = u["nominal_oil"] * f
             water = oil * u["water_cut"]
             # lift power grows as reservoir pressure falls (more artificial lift)
@@ -153,11 +154,16 @@ class OilGasPlant(BasePlant):
                 "separator_pressure_bar": round(sep_pressure, 1),
                 "wells_online": sum(1 for u in self.units if u["available"]),
                 "wells_total": len(self.units),
+                "choke_setting_pct": round(self.choke_setting, 0),
             },
         }
         self._evaluate_alarms()
 
     # --------------------------------------------------------------- helpers
+    def set_choke(self, pct):
+        self.choke_setting = max(0.0, min(100.0, float(pct)))
+        self._compute()
+
     def _ambient(self):
         if self.weather and self.weather.get("temperature_2m") is not None:
             return float(self.weather["temperature_2m"]) + random.uniform(-0.2, 0.2)
@@ -198,16 +204,16 @@ class OilGasPlant(BasePlant):
         ]
 
         def unit_fn(u):
-            i = u["idx"]
+            base = 40100 + u["idx"] * 10
             return [
-                (40100 + i * 10, f"{u['name']} Lift Power", u["p_ac_kw"], "0.1 kW"),
-                (40110 + i * 10, f"{u['name']} Oil Rate", u["oil_bpd"], "1 bbl/d"),
-                (40120 + i * 10, f"{u['name']} Gas Rate", u["gas_mmscfd"], "0.001 mmscfd"),
-                (40130 + i * 10, f"{u['name']} Water Cut", u["well_wcut"], "0.1 %"),
-                (40140 + i * 10, f"{u['name']} FTP", u["ftp"], "0.1 bar"),
-                (40150 + i * 10, f"{u['name']} Wellhead Temp", u["temp"], "0.1 C"),
-                (40160 + i * 10, f"{u['name']} Phase Voltage", u["v_phase"], "0.1 V"),
-                (40170 + i * 10, f"{u['name']} Phase Current", u["i_ac"], "0.1 A"),
+                (base, f"{u['name']} Lift Power", u["p_ac_kw"], "0.1 kW"),
+                (base + 1, f"{u['name']} Oil Rate", u["oil_bpd"], "1 bbl/d"),
+                (base + 2, f"{u['name']} Gas Rate", u["gas_mmscfd"], "0.001 mmscfd"),
+                (base + 3, f"{u['name']} Water Cut", u["well_wcut"], "0.1 %"),
+                (base + 4, f"{u['name']} FTP", u["ftp"], "0.1 bar"),
+                (base + 5, f"{u['name']} Wellhead Temp", u["temp"], "0.1 C"),
+                (base + 6, f"{u['name']} Phase Voltage", u["v_phase"], "0.1 V"),
+                (base + 7, f"{u['name']} Phase Current", u["i_ac"], "0.1 A"),
             ]
 
         return self.build_modbus(summary, unit_fn)

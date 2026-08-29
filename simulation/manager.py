@@ -10,6 +10,7 @@ weather, and exposes start / stop / select for the (future) fleet dashboard.
 from __future__ import annotations
 
 import os
+import re
 import time
 
 from simulation.protocols import ProtocolHub
@@ -18,6 +19,8 @@ from simulation.profiles import build_plant
 from simulation.plants.water import WaterPlant
 from simulation.plants.wind import WindPlant
 from simulation.plants.oilgas import OilGasPlant
+from simulation.plants.custom import CustomPlant
+from simulation.custom_profiles import load_custom_plants
 
 
 # Per-simulator port allocation (avoid collisions so several can run at once).
@@ -105,6 +108,12 @@ class SimulationManager:
         # Oil & gas cluster.
         self._add("oilgas", "Oil & Gas Facility", "oilgas",
                   OilGasPlant(), _PORTS["oilgas"])
+        for spec in load_custom_plants():
+            if isinstance(spec, dict) and spec.get("name") and spec.get("devices"):
+                try:
+                    self.add_custom_plant(spec)
+                except Exception as exc:  # pragma: no cover - corrupt/user-edited profile
+                    print(f"[sim] could not restore custom plant: {exc}")
 
     # ------------------------------------------------------------- runtime
     def step_all(self, live_mode, live_cf, weather_feed):
@@ -166,3 +175,35 @@ class SimulationManager:
 
     def fleet_status(self):
         return [self.sims[i].status() for i in self.order]
+
+    def add_custom_plant(self, spec):
+        """Add a user-configured training plant with a dedicated port set."""
+        base_id = re.sub(r"[^a-z0-9-]+", "-", spec["name"].lower()).strip("-")
+        base_id = base_id or "custom-plant"
+        sim_id = base_id
+        suffix = 2
+        while sim_id in self.sims:
+            sim_id = f"{base_id}-{suffix}"
+            suffix += 1
+        slot = sum(1 for sim in self.sims.values() if sim.kind == "custom")
+        ports = {
+            "modbus": 5030 + slot,
+            "iec104": 2430 + slot,
+            "goose": 5890 + slot,
+            "mqtt": sim_id,
+        }
+        plant = CustomPlant(spec)
+        self._add(sim_id, spec["name"], "custom", plant, ports)
+        return self.sims[sim_id]
+
+    def delete_custom_plant(self, sim_id):
+        sim = self.sims.get(sim_id)
+        if sim is None or sim.kind != "custom":
+            return None
+        sim.hub.stop()
+        sim.mqtt.stop()
+        del self.sims[sim_id]
+        self.order.remove(sim_id)
+        if self.active_id == sim_id:
+            self.active_id = "pv"
+        return sim

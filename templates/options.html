@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options & Integration - IMPOSTER</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/options.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-left"><div class="logo"><div class="logo-text"><strong>OPTIONS & INTEGRATION</strong><span>IMPOSTER developer workspace</span></div></div></div>
+  <div class="topbar-right"><a class="btn ghost small" href="/">OPEN HMI</a><a class="btn ghost small" href="/dashboard">FLEET</a></div>
+</header>
+
+<main class="options-layout">
+  <section class="panel options-panel">
+    <div class="panel-head"><h2>Protocol Translation</h2><span class="panel-tag">Live point map</span></div>
+    <div class="options-body">
+      <div class="options-form-row">
+        <label>Simulator<select class="select" id="map-simulator"></select></label>
+        <label>Protocol<select class="select" id="map-protocol"></select></label>
+        <label>Unit<select class="select" id="map-unit"></select></label>
+      </div>
+      <pre class="integration-code" id="map-code"></pre>
+      <div class="integration-table-wrap"><table class="mb-table"><thead><tr><th>Tag</th><th>Protocol translation</th><th>Live value</th></tr></thead><tbody id="map-rows"></tbody></table></div>
+    </div>
+  </section>
+
+  <section class="panel options-panel">
+    <div class="panel-head"><h2>Plant Creator</h2><span class="panel-tag">Training-model generator</span></div>
+    <div class="options-body creator-grid">
+      <div>
+        <div class="options-form-row plant-fields">
+          <label>Plant name<input class="input" id="plant-name" value="Custom Process Lab"></label>
+          <label>Latitude<input class="input" id="plant-lat" type="number" step="0.01" value="35.00"></label>
+          <label>Longitude<input class="input" id="plant-lon" type="number" step="0.01" value="33.00"></label>
+        </div>
+        <div class="builder-header"><h3>Device Inventory</h3><input class="input" id="inventory-filter" placeholder="Filter vendor, type, or model"></div>
+        <div class="creator-workspace">
+          <div class="device-palette" id="device-palette" aria-label="Available simulated device profiles"></div>
+          <div class="device-canvas" id="device-canvas" tabindex="0" aria-label="Plant device canvas">
+            <div class="canvas-empty" id="canvas-empty">Drag profiles here to build the simulated plant</div>
+          </div>
+        </div>
+      </div>
+      <aside class="creator-note">
+        <h3>Open Training Profiles</h3>
+        <p>Vendor names describe configurable training profiles and point conventions. They do not reproduce vendor firmware, engineering tools, or proprietary protocol implementations.</p>
+        <p>Each device becomes a live unit with telemetry, Modbus registers, IEC 104 points, MQTT messages, REST fields, and basic start/stop control.</p>
+        <button class="btn primary" id="btn-create-plant">CREATE & OPEN PLANT</button>
+        <p class="creator-status" id="creator-status" role="status"></p>
+      </aside>
+    </div>
+  </section>
+</main>
+<dialog class="device-dialog" id="device-dialog">
+  <form method="dialog" id="device-form">
+    <div class="dialog-head"><h2>Device Settings</h2><button class="btn ghost small" value="cancel">CLOSE</button></div>
+    <div class="options-form-row"><label>Device name<input class="input" id="edit-name"></label><label>Rated kW<input class="input" id="edit-rated-kw" type="number" min="1" max="100000"></label><label>Nominal voltage<input class="input" id="edit-voltage" type="number" min="12" max="1000"></label></div>
+    <div class="options-form-row"><label>Power factor<input class="input" id="edit-pf" type="number" min="0.5" max="1" step="0.01"></label><label>Operating range<input class="input" id="edit-range"></label><label>Family<input class="input" id="edit-family"></label></div>
+    <div class="dialog-actions"><button class="btn danger small" id="btn-delete-device" type="button">REMOVE DEVICE</button><button class="btn primary" id="btn-save-device" value="default">SAVE CHANGES</button></div>
+  </form>
+</dialog>
+<footer class="footer">Simulated training devices only. Keep all protocol services inside a controlled lab network.</footer>
+<script src="{{ url_for('static', filename='js/options.js') }}"></script>
+</body>
+</html>

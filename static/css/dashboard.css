@@ -64,9 +64,19 @@ body { background: #0d1117; color: #e6edf3; }
 .btn.small { padding: 6px 10px; font-size: 11px; }
 .btn.primary { background: #1d6f4a; border-color: #36d399; color: #eafff5; }
 .btn.warn { background: #5a3a12; border-color: #b9812f; color: #ffe9cf; }
+.btn.danger { background: #482020; border-color: #a54b4b; color: #ffd9d9; }
 .btn.ghost { background: transparent; border-color: #2a3442; color: #9fb0c3; }
 .btn:disabled { opacity: .5; cursor: default; }
 
 .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
   background: #1b2330; border: 1px solid #2a3442; border-radius: 999px; padding: 4px 10px; }
 .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #36d399; }
+
+@media (max-width: 640px) {
+  .fleet-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; padding: 12px; }
+  .toolbar-actions { width: 100%; flex-wrap: wrap; }
+  .toolbar-actions .btn { flex: 1 1 80px; }
+  .fleet-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 10px; }
+  .fleet-card { min-width: 0; padding: 12px; }
+  .card-ports { gap: 6px; }
+}

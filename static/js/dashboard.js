@@ -9,7 +9,7 @@ const KIND_ICON = {
   pv: "☀", water: "💧", wind: "🌬", oilgas: "🛢",
 };
 const KIND_LABEL = {
-  pv: "Photovoltaic", water: "Water Treatment", wind: "Wind Farm", oilgas: "Oil & Gas",
+  pv: "Photovoltaic", water: "Water Treatment", wind: "Wind Farm", oilgas: "Oil & Gas", custom: "Custom Plant",
 };
 
 let FLEET = { active: "pv", simulators: [] };
@@ -73,6 +73,7 @@ function card(sim) {
     <div class="card-actions">
       <button class="btn small ${online ? "warn" : ""}" data-act="toggle">${online ? "STOP" : "START"}</button>
       <button class="btn small ${isActive ? "" : "primary"}" data-act="open" ${isActive ? "disabled" : ""}>${isActive ? "ACTIVE" : "OPEN"}</button>
+      ${sim.kind === "custom" ? '<button class="btn danger small" data-act="delete">DELETE</button>' : ""}
     </div>
   </article>`;
 }
@@ -91,6 +92,8 @@ function renderFleet() {
     el.querySelector('[data-act="toggle"]').onclick = () => toggleSim(el.dataset.id);
     const openBtn = el.querySelector('[data-act="open"]');
     if (openBtn && !openBtn.disabled) openBtn.onclick = () => openSim(el.dataset.id);
+    const deleteBtn = el.querySelector('[data-act="delete"]');
+    if (deleteBtn) deleteBtn.onclick = () => deleteSim(el.dataset.id, el.querySelector(".card-title").textContent);
   });
 }
 
@@ -121,6 +124,14 @@ async function openSim(id) {
   await api("/api/fleet/select", { method: "POST",
     headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
   window.location = "/";
+}
+
+async function deleteSim(id, label) {
+  if (!window.confirm(`Delete ${label}? Its local custom profile and running protocol services will be removed.`)) return;
+  const response = await fetch("/api/custom-plants/" + encodeURIComponent(id), { method: "DELETE" });
+  const result = await response.json();
+  if (!response.ok) window.alert(result.error || "Unable to delete plant.");
+  await loadFleet();
 }
 
 function tickClock() {

@@ -49,6 +49,7 @@ class ModbusService:
         self.enabled = True
         self.listening = False
         self.clients = 0
+        self._server = None
         try:
             n_inv = len(plant.inverters)
         except Exception:
@@ -141,9 +142,16 @@ class ModbusService:
                 self.enabled = False
                 return
         srv.listen(5)
+        self._server = srv
         self.listening = True
         print(f"[modbus] listening on tcp/{self.port}")
         threading.Thread(target=self._accept, args=(srv,), daemon=True).start()
+
+    def stop(self):
+        if self._server:
+            self._server.close()
+            self._server = None
+        self.listening = False
 
     def _accept(self, srv):
         while True:
@@ -311,6 +319,7 @@ class IEC104Service:
         self.listening = False
         self.clients = 0
         self._lock = threading.Lock()
+        self._server = None
 
     # ---- public control ----
     def start(self):
@@ -323,8 +332,15 @@ class IEC104Service:
             self.enabled = False
             return
         srv.listen(5)
+        self._server = srv
         self.listening = True
         threading.Thread(target=self._accept_loop, args=(srv,), daemon=True).start()
+
+    def stop(self):
+        if self._server:
+            self._server.close()
+            self._server = None
+        self.listening = False
 
     def _accept_loop(self, srv):
         while True:
@@ -660,6 +676,7 @@ class GOOSEService:
         self._last_hash = None
         self._gw_clients = set()
         self._gw_lock = threading.Lock()
+        self._gateway_server = None
 
     @staticmethod
     def _default_iface():
@@ -783,9 +800,21 @@ class GOOSEService:
             print(f"[goose-gw] bind failed: {e}")
             return
         srv.listen(10)
+        self._gateway_server = srv
         self.gateway_listening = True
         print(f"[goose-gw] listening on tcp/{self.gateway_port}")
         threading.Thread(target=self._gw_accept, args=(srv,), daemon=True).start()
+
+    def stop(self):
+        if self._gateway_server:
+            self._gateway_server.close()
+            self._gateway_server = None
+        with self._gw_lock:
+            for client in self._gw_clients:
+                client.close()
+            self._gw_clients.clear()
+        self.gateway_clients = 0
+        self.gateway_listening = False
 
     def start(self):
         if not self.enabled:
@@ -844,6 +873,11 @@ class ProtocolHub:
         self.modbus.rebind(plant)
         self.iec104.plant = plant
         self.goose.plant = plant
+
+    def stop(self):
+        self.modbus.stop()
+        self.iec104.stop()
+        self.goose.stop()
 
     def status(self):
         return {

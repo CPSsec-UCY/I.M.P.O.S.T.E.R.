@@ -10,12 +10,15 @@ next phase.
 
 import threading
 import time
+import uuid
 
 from flask import Flask, render_template, jsonify, request, Response
 from flask_cors import CORS
 
 from simulation.manager import SimulationManager
 from simulation.profiles import list_profiles, is_valid
+from simulation.custom_profiles import save_custom_plant, delete_custom_plant
+from simulation.device_catalog import DEVICE_PROFILES
 from simulation.live_feed import LiveFeed, WeatherFeed
 
 
@@ -53,6 +56,12 @@ def index():
 def dashboard():
     """Fleet navigation dashboard: list, start/stop and select simulators."""
     return render_template("dashboard.html")
+
+
+@app.route("/options")
+def options():
+    """Developer integration mapping and custom training-plant creator."""
+    return render_template("options.html")
 
 
 @app.route("/api/state")
@@ -136,6 +145,16 @@ def api_control():
         elif action == "cloud":
             plant.inject_cloud(factor=float(params.get("factor", 0.2)),
                                duration_s=float(params.get("duration", 600)))
+        elif action == "set_demand":
+            plant.set_demand(float(params.get("pct", 75)))
+        elif action == "set_chlorine_target":
+            plant.set_chlorine_target(float(params.get("mg_l", 0.9)))
+        elif action == "set_wind_speed":
+            plant.set_wind_speed(float(params.get("ms", 8)))
+        elif action == "set_choke":
+            plant.set_choke(float(params.get("pct", 100)))
+        elif action == "set_process_load":
+            plant.set_process_load(float(params.get("pct", 75)))
         elif action == "clear_faults":
             plant.clear_faults()
         else:
@@ -185,6 +204,51 @@ def api_livefeed():
 @app.route("/api/fleet")
 def api_fleet():
     return jsonify({"active": manager.active_id, "simulators": manager.fleet_status()})
+
+
+@app.route("/api/device-catalog")
+def api_device_catalog():
+    """Open device profile templates; names are metadata, not vendor firmware."""
+    return jsonify({"profiles": DEVICE_PROFILES})
+
+
+@app.route("/api/custom-plants", methods=["POST"])
+def api_custom_plants():
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()
+    devices = data.get("devices")
+    if not name or not isinstance(devices, list) or not 1 <= len(devices) <= 50:
+        return jsonify({"success": False, "error": "Provide a plant name and 1 to 50 devices."}), 400
+    spec = {"profile_id": uuid.uuid4().hex, "name": name[:80], "lat": data.get("lat", 35.0), "lon": data.get("lon", 33.0), "devices": []}
+    for index, device in enumerate(devices):
+        if not isinstance(device, dict):
+            continue
+        spec["devices"].append({
+            "name": str(device.get("name") or f"DEVICE-{index + 1:02d}")[:48],
+            "vendor": str(device.get("vendor") or "Generic")[:48],
+            "model": str(device.get("model") or "Simulated Device")[:80],
+            "type": str(device.get("type") or "Device")[:40],
+            "rated_kw": max(1.0, min(100000.0, float(device.get("rated_kw", 100)))),
+            "nominal_v": max(12.0, min(1000.0, float(device.get("nominal_v", 400)))),
+            "pf": max(0.5, min(1.0, float(device.get("pf", 0.94)))),
+            "range": str(device.get("range") or "Configured range")[:80],
+            "family": str(device.get("family") or "Custom")[:40],
+        })
+    if not spec["devices"]:
+        return jsonify({"success": False, "error": "At least one valid device is required."}), 400
+    sim = manager.add_custom_plant(spec)
+    save_custom_plant(spec)
+    manager.select(sim.id)
+    return jsonify({"success": True, "id": sim.id, "simulator": sim.status()})
+
+
+@app.route("/api/custom-plants/<sid>", methods=["DELETE"])
+def api_delete_custom_plant(sid):
+    sim = manager.delete_custom_plant(sid)
+    if sim is None:
+        return jsonify({"success": False, "error": "Only custom plants can be deleted."}), 404
+    delete_custom_plant(sim.plant.spec.get("profile_id"))
+    return jsonify({"success": True, "active": manager.active_id})
 
 
 @app.route("/api/fleet/start", methods=["POST"])
