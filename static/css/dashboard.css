@@ -1,0 +1,72 @@
+/* Fleet dashboard styles (dark control-room theme). */
+body { background: #0d1117; color: #e6edf3; }
+.fleet-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 22px; border-bottom: 1px solid #1f2733; background: #11161f;
+}
+.fleet-toolbar h2 { margin: 0; font-size: 15px; letter-spacing: .12em; color: #9fb0c3; }
+.toolbar-actions { display: flex; gap: 8px; }
+
+.fleet-grid {
+  display: grid; gap: 16px; padding: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.fleet-empty { color: #6b7785; padding: 40px; text-align: center; }
+
+.fleet-card {
+  background: #131a24; border: 1px solid #1f2733; border-radius: 12px;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  transition: border-color .15s, transform .15s;
+}
+.fleet-card.on { border-color: #1d3a2a; }
+.fleet-card.off { opacity: .82; }
+.fleet-card.active { border-color: #36d399; box-shadow: 0 0 0 1px #36d39955; }
+.fleet-card:hover { transform: translateY(-2px); }
+
+.card-head { display: flex; justify-content: space-between; align-items: center; }
+.kind-badge {
+  font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  padding: 4px 9px; border-radius: 999px; background: #1b2430; color: #cdd9e5;
+}
+.kind-pv { color: #ffcf33; } .kind-water { color: #4cc2ff; }
+.kind-wind { color: #9b8cff; } .kind-oilgas { color: #ff9d5c; }
+
+.run-pill { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+.run-pill.on { background: #143a25; color: #36d399; }
+.run-pill.off { background: #3a1f1f; color: #ff6b6b; }
+
+.card-title { margin: 0; font-size: 17px; color: #f0f6fc; }
+.card-name { font-size: 12px; color: #7d8a99; margin-top: -6px; }
+
+.card-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cm { background: #0e141d; border-radius: 8px; padding: 8px 10px; }
+.cm-l { display: block; font-size: 10px; letter-spacing: .08em; color: #6b7785; }
+.cm-v { font-size: 16px; font-weight: 700; color: #e6edf3; }
+.cm-v small { font-size: 10px; color: #7d8a99; font-weight: 500; }
+
+.card-proto { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mini-led { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.mini-led.online { background: #36d399; box-shadow: 0 0 6px #36d39988; }
+.mini-led.off { background: #4b2b2b; }
+
+.card-ports {
+  display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: #8b97a6;
+  border-top: 1px solid #1f2733; padding-top: 10px;
+}
+.card-ports b { color: #cdd9e5; }
+
+.card-actions { display: flex; gap: 8px; margin-top: auto; }
+.card-actions .btn { flex: 1; }
+
+.btn { cursor: pointer; border: 1px solid #2a3442; background: #1b2330; color: #e6edf3;
+  border-radius: 7px; padding: 8px 12px; font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+.btn:hover { background: #232d3d; }
+.btn.small { padding: 6px 10px; font-size: 11px; }
+.btn.primary { background: #1d6f4a; border-color: #36d399; color: #eafff5; }
+.btn.warn { background: #5a3a12; border-color: #b9812f; color: #ffe9cf; }
+.btn.ghost { background: transparent; border-color: #2a3442; color: #9fb0c3; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
+  background: #1b2330; border: 1px solid #2a3442; border-radius: 999px; padding: 4px 10px; }
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #36d399; }

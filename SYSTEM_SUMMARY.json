@@ -1,0 +1,159 @@
+{
+  "project": "Industrial Simulator Ecosystem - Multi-Plant Digital-Twin Control Center",
+  "version": "7.0 - Physically-Modelled Simulation Ecosystem (PV + Water + Wind + Oil & Gas) with Live Industrial Protocol Services + Simulated Plant/Equipment Layer (Breakers, Transformers, VFDs, Relays, Process Skids) exposed over Modbus / IEC104 / GOOSE / MQTT / Web + Fleet Dashboard",
+  "purpose": "Academic research, teaching and operator-training digital twins of several utility-scale industrial plants. Every signal is produced by a physical model (not random noise) and exposed over real, reachable wire-protocol services (Modbus TCP, IEC 60870-5-104, IEC 61850 GOOSE, MQTT) that external SCADA/clients can connect to. A fleet manager runs all plants concurrently; a web dashboard lets operators navigate between them and run any selection (or all).",
+  "created": "2026-08-27",
+  "updated": "2026-08-28",
+  "access": {
+    "web_interface": "http://0.0.0.0:5000 (LAN reachable)",
+    "fleet_dashboard": "http://0.0.0.0:5000/dashboard",
+    "single_plant_hmi": "http://0.0.0.0:5000/  (shows the ACTIVE simulator; select via dashboard or POST /api/fleet/select)",
+    "run_command": "cd /home/protectli/industrial_ecosystem && python3 app.py",
+    "mqtt_broker": "amqtt on localhost:1883 (started separately: amqtt -c /tmp/broker.yaml). Publishers connect automatically and retry; topics sim/<id>/state and sim/<id>/unit/<idx>.",
+    "note": "Flask dev server (no auth, open CORS) - fine for a trusted lab, not for public internet."
+  },
+  "architecture": {
+    "manager": "simulation/manager.py (class SimulationManager + Simulator). Builds 4 simulators, each with its own ProtocolHub (unique port set) and MqttPublisher. A single 4 Hz background loop steps every RUNNING sim on a shared clock, feeds real per-site weather + live fleet capacity factor, pushes Modbus, and publishes MQTT (~2 s).",
+    "base_class": "simulation/plants/base.py (BasePlant): shared clock (live+sim), generic units list (exposed as plant['inverters'] for protocol compatibility), alarm evaluation, energy accounting, history, Modbus map builder, snapshot(); fills legacy UI env keys via _ensure_env_keys() so the original HMI works for ANY plant type.",
+    "plants": "simulation/plants/{water,wind,oilgas}.py plus the original PV plant (simulation/pv_plant.py, driven by simulation/profiles.py build_plant)."
+  },
+  "ecosystem": {
+    "simulators": [
+      { "id": "pv",     "kind": "pv",     "label": "PV Plant (Helios)",           "class": "PVPlant (profiles.build_plant)", "capacity_mwp": 1.5,  "units": 6,  "ports": { "modbus": 5020, "iec104": 2404, "goose": 5880 }, "mqtt": "sim/pv" },
+      { "id": "water",  "kind": "water",  "label": "Water Treatment Works",        "class": "WaterPlant",                     "capacity_mwp": 0.9,  "units": 12, "ports": { "modbus": 5021, "iec104": 2405, "goose": 5881 }, "mqtt": "sim/water" },
+      { "id": "wind",   "kind": "wind",   "label": "Onshore Wind Farm",            "class": "WindPlant",                      "capacity_mwp": 25.0, "units": 25, "ports": { "modbus": 5022, "iec104": 2406, "goose": 5882 }, "mqtt": "sim/wind" },
+      { "id": "oilgas", "kind": "oilgas", "label": "Oil & Gas Facility",           "class": "OilGasPlant",                    "capacity_mwp": 8.0,  "units": 20, "ports": { "modbus": 5023, "iec104": 2407, "goose": 5883 }, "mqtt": "sim/oilgas" }
+    ],
+    "note": "Each simulator is fully independent (own physical model + own protocol sockets + own MQTT topic). Wind uses a realistic power curve (cut-in 3, rated 12, cut-out 25 m/s) with hub-height wind via power law from real 10 m wind. Water is a process load with diurnal demand and process telemetry (influent/effluent flow, turbidity, chlorine residual, tank level). Oil & gas models reservoir-pressure decline, production (oil bbl/d, gas mmscfd, water cut) and separator pressure. WIND and OIL&GAS expose INDUSTRY-REALISTIC SCADA TAG MAPS (see protocol_services.Modbus_TCP.notes): per-unit registers carry turbine wellhead-specific tags instead of generic P/Q/I/V. EVERY plant also exposes a SIMULATED BALANCE-OF-PLANT & SUBSTATION EQUIPMENT LAYER (simulation/plants/equipment.py; <plant>.equipment + snapshot key 'equipment'): PV=23 items, Water=29, Wind=81, Oil&Gas=71. Common substation equipment: Incoming MV Breaker (main, controls the grid-connection/grid-fault), Main Step-up Transformer, Protection & Control IED, Bay Controller/RTU, Revenue Energy Meter (Wind/Oil&Gas add a Collector Bus/RMU). Per-unit: PV AC feeder breaker + DC isolator + string monitor per inverter; Water feeder breaker + VFD/soft-starter per motor; Wind turbine transformer + feeder breaker + converter per WTG; Oil&Gas plant skids (Test Separator, Production Manifold, Gas Compressor, Export Pump, Flare/PSV) + per-well X-mas tree/choke, ESP VSD, wellhead isolation valve. Equipment STATUS is simulated from live plant state (closed/open/running/stopped/energized/de-energized/ok/alarm) with ANALOG TELEMETRY (current A, winding temp C, load %, position %, pressure bar), and is OPERABLE from the network: Modbus control coils at addr 100+, IEC104 C_SC_NA commands (IOA=1000+i) with activation confirmation, Web API (/api/equipment/control, /api/fleet/<id>/equipment/control), and HMI buttons in the 'Plant Equipment' panel. A control drives the physical model (trip a breaker -> that unit/inverter trips; open the main breaker -> grid fault) and propagates to GOOSE status bits, IEC104 spontaneous/interrogated values, MQTT, and the register map immediately."
+  },
+  "plant_model": {
+    "name": "Helios Utility PV Plant (default PV twin)",
+    "location": { "latitude_deg": 37.98, "longitude_deg": 23.73 },
+    "configuration": "6 central inverters x 250 kWac, 10 strings/inverter, 25 kWp/string (60 strings, 1.5 MWp DC / 1.5 MWac)",
+    "collector_bus_kv": 33.0,
+    "grid_interconnect_kv": 150.0,
+    "note": "The PV plant is SELECTABLE at runtime via the 'DIGITAL TWIN' dropdown (simulation/profiles.py) or POST /api/select_profile. Non-PV plants are fixed physical models. Switching the PV twin does NOT restart protocol services (ProtocolHub.rebind keeps sockets bound)."
+  },
+  "digital_twins": {
+    "concept": "Multi-target platform for cybersecurity research on PV/SCADA infrastructure, now extended to a multi-plant ecosystem (water/wind/oil&gas) for broader OT/SCADA training.",
+    "default_profile": "helios",
+    "registry": "simulation/profiles.py (PROFILES dict: list_profiles(), build_plant(), is_valid())",
+    "weather_feed": "simulation/live_feed.py (WeatherFeed, Open-Meteo, no API key). Each simulator is seeded with REAL per-site weather for its own (lat, lon): ambient temperature, wind speed (m/s), cloud cover. Background thread refreshes every 600 s; falls back to synthetic environment when offline.",
+    "profiles": [
+      { "id": "helios", "name": "Helios Utility PV Plant", "country": "Greece", "capacity_mwac": 1.5, "inverters": 6, "kw_per_inv": 250 },
+      { "id": "cy_dhekelia_pv", "name": "Dhekelia PV", "country": "Cyprus", "capacity_mwac": 0.9, "inverters": 9, "kw_per_inv": 100 },
+      { "id": "cy_akrotiri_pv", "name": "Akrotiri PV", "country": "Cyprus", "capacity_mwac": 12.0, "inverters": 12, "kw_per_inv": 1000 },
+      { "id": "cy_acheras_pv", "name": "Acheras PV", "country": "Cyprus", "capacity_mwac": 8.0, "inverters": 8, "kw_per_inv": 1000 },
+      { "id": "cy_limassol_100mw", "name": "Limassol PV 100 MW", "country": "Cyprus", "capacity_mwac": 100.0, "inverters": 100, "kw_per_inv": 1000 }
+    ],
+    "modes": {
+      "sim": "Accelerated simulation clock (default). sim_time advances at time_scale (default x120) from a 05:30 start; operators can skip to any hour and change acceleration.",
+      "live": "Real wall-clock mode (1x): each plant computes its real current generation for its own latitude/longitude/date. Toggled globally via POST /api/control {action:'set_mode', params:{mode:'live'|'sim'}}."
+    }
+  },
+  "physical_model": {
+    "solar_geometry": "Declination from day-of-year; solar elevation & azimuth from latitude and solar hour (PV).",
+    "irradiance": "Clear-sky GHI/DNI via air-mass attenuation; POA from fixed-tilt beam + isotropic diffuse + ground reflected; stochastic cloud attenuation. Anchored to measured shortwave_radiation from WeatherFeed when available.",
+    "wind_power_curve": "WindPlant: cut-in 3 m/s, rated 12 m/s, cut-out 25 m/s; power = rated*( (v-cut_in)/(rated-cut_in) )^3 capped; hub-height wind via power law (alpha~0.14) from 10 m real wind.",
+    "water_load": "WaterPlant: diurnal demand curve (peaks ~07:30 and ~19:00) drives pump/blower/filter/UV/sludge motor loads; process telemetry computed from demand.",
+    "oilgas": "OilGasPlant: reservoir-pressure decline model; production scales with well availability and pressure; water cut + separator pressure tracked.",
+    "grid": "Frequency with droop-like deviation vs power imbalance; MV voltage slow variation; power factor.",
+    "energy": "Time-integrated AC energy (daily + cumulative MWh)."
+  },
+  "faults_and_disturbances": {
+    "grid_fault": "Trips all units, forces 0 MW (PV), frequency/voltage excursion, critical alarms + GOOSE trip count.",
+    "unit_trip": "Manual trip/restore of a single unit (also driven by Modbus coil writes) for ANY plant type.",
+    "cloud_pass": "Transient cloud attenuation (PV) for a configurable duration.",
+    "curtailment": "Active-power curtailment setpoint (0-100%) from the grid/PLC.",
+    "scenarios": "weather presets: clear / cloudy / storm (PV)."
+  },
+  "time_acceleration": "Simulated clock advances in real time x1..x600 (default x120). 'Skip to hour' jumps the clock; energy integrated each tick. LIVE mode tracks real wall clock (1x).",
+  "backend": {
+    "framework": "Flask 2.3 + flask-cors",
+    "simulation_engine": "simulation/manager.py (SimulationManager): 4 simulators, shared 4 Hz stepping thread; per-sim ProtocolHub + MqttPublisher.",
+    "api_endpoints": {
+      "GET /api/state": "Snapshot of the ACTIVE simulator (env, grid, plant, units, alarms).",
+      "GET /api/history": "Time-series for charting (active sim).",
+      "GET /api/modbus": "SCADA-style Modbus holding-register and coil map (active sim).",
+      "GET /api/protocols": "Status of live protocol services (active sim).",
+      "GET /api/goose": "Recent GOOSE messages published (active sim).",
+      "GET /api/alarms": "Alarm list + active count (active sim).",
+      "POST /api/alarm/ack": "Acknowledge one alarm (id) or all (id=all).",
+      "POST /api/control": "Supervisory actions: set_running, set_time_scale, set_scenario, set_curtailment, set_sim_time, toggle_inverter, trip_string, grid_fault, cloud, clear_faults, set_mode.",
+      "GET /api/profiles": "List of selectable PV digital twins + active profile.",
+      "POST /api/select_profile": "Switch the live PV twin at runtime (ProtocolHub.rebind keeps sockets bound).",
+      "GET /api/livefeed": "Live-feed status (generation + weather).",
+      "GET /api/export": "CSV export of the recorded time-series (active sim).",
+      "GET /api/fleet": "List + status of ALL simulators (active id, per-sim ports, protocols, mqtt, running, live metrics).",
+      "POST /api/fleet/start": "Start a simulator {id}.",
+      "POST /api/fleet/stop": "Stop a simulator {id}.",
+      "POST /api/fleet/select": "Select the ACTIVE simulator {id} (HMI + /api/state target it).",
+      "GET /api/fleet/<id>/state": "Snapshot of a specific simulator.",
+      "GET /api/fleet/<id>/modbus": "Modbus map of a specific simulator.",
+      "GET /api/equipment": "Simulated plant equipment (balance-of-plant + substation) of the ACTIVE sim.",
+      "GET /api/fleet/<id>/equipment": "Equipment list of a specific sim (id, name, kind, status, analog telemetry, control coil).",
+      "POST /api/equipment/control": "Operate equipment: {id, value} on the active sim (open/close breaker, start/stop VFD, etc.).",
+      "POST /api/fleet/<id>/equipment/control": "Operate equipment on a specific sim: {id, value}.",
+      "POST /api/fleet/runall": "Start every simulator.",
+      "POST /api/fleet/stopall": "Stop every simulator."
+    }
+  },
+  "protocol_services": {
+    "note": "Each simulator owns its OWN port set (see ecosystem.simulators.ports). PV=5020/2404/5880, Water=5021/2405/5881, Wind=5022/2406/5882, Oil&Gas=5023/2407/5883. The protocol layer only needs plant.modbus_map(), plant.plant['inverters'], plant.grid, plant.env, plant.running and the control methods, so BasePlant makes ANY plant type work unchanged.",
+    "Modbus_TCP": {
+      "ports": "5020 (pv), 5021 (water), 5022 (wind), 5023 (oilgas)",
+      "two_way": true,
+      "notes": "Holding registers 40xxx (plant summary) + 401xx (per-unit) + 410xx (equipment: 4 regs/block = status code + up to 3 analog telemetry). Coil map generalised to N units: coil i trip/restore unit i, coil n = grid fault, n+1 = plant run, n+2 = curtailment, n+3 = fault present; EQUIPMENT CONTROL coils at addr 100+ (one per controllable item: breakers, VFDs, converters, wellhead valves, main MV breaker). Store dynamically sized from unit+equipment count, refreshed each tick via push(). Per-UNIT TAGS ARE INDUSTRY-REALISTIC: WIND WTG-nn -> Active Power, Reactive Power, Rotor Speed, Local Wind, Pitch Angle, Nacelle Temp, Phase Voltage, Phase Current, Power Curve % (690 V LV). OIL&GAS WELL-nn -> Lift Power (kW), Oil Rate (bbl/d), Gas Rate (mmscfd), Water Cut (%), Flowing Tubing Pressure/FTP (bar), Wellhead Temp (C), Phase Voltage, Phase Current (400 V LV). Wind plant summary drops generic 'Cloud Cover' in favour of Wind Speed Hub / Avg Rotor Speed / Turbines Online-Total / Max Nacelle Temp."
+    },
+    "IEC_60870_5_104": {
+      "ports": "2404 (pv), 2405 (water), 2406 (wind), 2407 (oilgas)",
+      "verified": "STARTDT handshake, C_IC_NA interrogation (full image as I-frames), spontaneous M_SP_NA / M_ME_NC I-frames. ASDUs chunked (<=30 elements / <255-byte APDU) for large plants.",
+      "equipment": "Interrogation + spontaneous both carry EQUIPMENT ASDUs: single-point M_SP_NA at IOA 1000+i and measured M_ME_NC at IOA 2000+i (primary analog per item). Two-way: C_SC_NA (type 58) with IOA=1000+i acts on the i-th equipment item and returns an activation-confirmation ASDU (COT=7); verified to trip a wellhead via its breaker."
+    },
+    "IEC_61850_GOOSE": {
+      "multicast_mac": "01:0c:cd:01:00:01",
+      "ethertype": "0x88B8",
+      "gateway_ports": "5880 (pv), 5881 (water), 5882 (wind), 5883 (oilgas)",
+      "gateway": "GOOSE is Layer-2 multicast; a TCP gateway re-publishes the REAL BER-encoded GOOSE APDU (tag 0x61) to any subscriber, length-prefixed (4-byte big-endian). gocbRef per plant kind (e.g. WIND_GCB_001). Raw-frame emission requires root (scapy); the message log + stNum/sqNum + TCP gateway work as non-root.",
+      "equipment_bits": "The AllData dataset now starts with one boolean per EQUIPMENT item (in the same order as <plant>.equipment: 23 PV / 29 Water / 81 Wind / 71 Oil&Gas), followed by the unit-running bits, grid-connected, and plant-run bits. Equipment STATE CHANGES increment stNum so protection/SCADA subscribers see switch-trip events on the wire."
+    },
+    "MQTT": {
+      "broker": "localhost:1883 (amqtt). Optional/best-effort: publishers retry until reachable.",
+      "topics": "sim/<id>/state (full snapshot, retained) and sim/<id>/unit/<idx> (per-unit, retained), for id in {pv,water,wind,oilgas}.",
+      "client": "simulation/mqtt_pub.py (MqttPublisher): paho-mqtt v2 (or v1) with version-tolerant callbacks, MQTT v3.1.1, dedicated reconnect thread (blocking connect + loop_start, retries forever)."
+    }
+  },
+  "frontend": {
+    "tech": "Vanilla HTML/CSS/JS, no external CDN dependencies (works fully offline)",
+    "pages": ["templates/base.html (single-plant HMI, targets ACTIVE sim; PLANT-SPECIFIC via hmi.js)", "templates/dashboard.html (fleet navigation)"],
+    "style": ["static/css/main.css (control-room dark theme + per-kind process-visual styles)", "static/css/dashboard.css (fleet cards)"],
+    "logic": ["static/js/hmi.js (PLANT-SPECIFIC rendering engine: per-kind KPI strip, multi-series trend chart (canvas), animated process visuals (SVG), unit cards, supervisory controls)", "static/js/main.js (orchestrator: 1s state poll, 2s history, 4s modbus, 3s protocol; detects active plant kind and drives HMI)", "static/js/dashboard.js (fleet: lists/starts/stops/selects sims, 3s poll)"],
+    "dashboard_features": [
+      "Fleet grid of cards: per-sim kind badge, running/stopped pill, live KPIs (active power, capacity, units online, alarms).",
+      "Protocol/MQTT status LEDs (Modbus/IEC104/GOOSE/MQTT listening) + port badges.",
+      "Per-card START/STOP toggle and OPEN (selects sim as active and loads the single-plant HMI).",
+      "Toolbar RUN ALL / STOP ALL / REFRESH.",
+      "Links to the single-plant HMI (top bar 'OPEN HMI') and back (HMI top bar 'FLEET')."
+    ],
+    "plant_specific_hmi": "The single-plant HMI auto-detects the active simulator's kind and renders a DIFFERENT dashboard per plant (KPI strip, trend chart, animated process visual, unit cards and supervisory controls all come from per-kind tables in static/js/hmi.js). Selecting a different sim in the fleet (or switching PV twin) rebuilds the HMI to that plant's layout. No JS errors; charts auto-fit to the recorded sim-time window. (1) PV -> solar KPIs (power/energy/efficiency/POA/cell temp/grid/CO2) + multi-series trend (AC power + POA irradiance + cell temp) + animated single-line diagram (array, inverters, 33kV MV bus, transformer, grid) + per-inverter cards. (2) WATER -> works KPIs (demand power/treated flow/turbidity/chlorine/tank level/grid/assets online) + trend (treated flow + demand power + Cl2 + tank level) + animated treatment process train (Raw->Sediment->Aeration->Filtration->UV, dashed flow animation, live tank-level fill) + per-motor cards. (3) WIND -> farm KPIs (farm power/hub wind/avg rpm/max nacelle/turbines online/grid/daily energy) + trend (farm power + hub wind + avg rpm) + animated turbiner row (9 spinning rotors scaled by per-turbine rpm, wind streaks, stars, hub wind/rotor/farm readouts) + per-WTG cards (power curve, rpm, local wind, pitch, nacelle). (4) OIL&GAS -> production KPIs (lift power/oil bbl-d/gas mmscfd/water cut/reservoir bar/grid/wells online) + trend (oil + gas + water cut + reservoir) + animated production & separation flow (6 wellheads with live choke status, compressor flywheel, 3-phase separator oil/water split, flickering flare sized by gas rate) + per-well cards (oil/gas/water-cut/FTP/lift/heading).",
+    "visualizations": [
+      "Plant-specific KPI strip (7 cards) + multi-series canvas trend chart (per-kind series, self-scaled y-axes, auto-fit x-axis to sim window) + animated SVG process visual (per kind) + plant-specific unit cards.",
+      "Supervisory control panel (per-kind: common run/pause, time accel, skip-hour, curtailment, grid-fault, unit trip, export + PV-only weather scenarios), substation protocol status, live alarm log, SCADA Modbus register/coil table.",
+      "Plant Equipment panel (per-sim substation + process equipment table: status LEDs, live analog telemetry, CLOSE/START / OPEN/STOP control buttons) + the SCADA Register Map shows an 'Equipment Holding Registers (41xxx)' section."
+    ]
+  },
+  "validation": {
+    "ecosystem_verified": "All 4 simulators start concurrently; Modbus binds 5020-5023, IEC104 2404-2407, GOOSE 5880-5883; HTTP on 5000; MQTT (amqtt) connected=True for all 4 with live retained state+unit topics on sim/#.",
+    "fleet_api_verified": "/api/fleet lists 4 sims; /api/fleet/<id>/state and /api/fleet/<id>/modbus return correct per-sim data; start/stop/select/runall/stopall work; selecting a sim changes /api/state to that kind.",
+    "realistic_tag_maps_added": "Wind (WTG-nn) and Oil&Gas (WELL-nn) Modbus per-unit registers now carry industry-specific SCADA tag names (turbine nacelle/rotor/pitch/power-curve; wellhead lift power/oil-gas-water rates/FTP/water cut). Verified live via /api/fleet/<id>/modbus (oilgas HR=174 incl 8 per-well tags; wind HR=240 incl 9 per-turbine tags).",
+    "equipment_layer_verified": "Simulated BALANCE-OF-PLANT & SUBSTATION equipment (PV 23 / Water 29 / Wind 81 / Oil&Gas 71 items: MV breaker, transformer, protection IED, bay RTU, meter, collector bus, per-unit breakers/VFDs/converters/transformers, oil&gas separators/compressor/pump/PSV + per-well choke & VSD & isolation valve) modelled with live status + analog telemetry. Verified network-accessible & two-way: (1) Modbus HOLDING READ of 41xxx equip regs OK and COIL WRITE (addr 107 = WTG-01-CB / 111 = WELL-01-XMT) trips the unit (fault=MANUAL_TRIP) then restores; (2) IEC104 STARTDT + interrogation returns 202 equip ASDUs (M_SP_NA IOA 1000+, M_ME_NC IOA 2000+) and a C_SC_NA command (type 58, IOA 1000+11) operated WELL-01-XMT off with activation-confirmation; (3) GOOSE dataset bits now = equip bits(<=71) + unit bits + grid + plant and a state change bumps stNum; (4) MQTT sim/oilgas/state topic carries equipment[71]; (5) Web /api/equipment + /api/fleet/<id>/equipment + control endpoints + HMI 'Plant Equipment' panel with CLOSE/START-OPEN/STOP buttons all work.",
+    "port_bug_fixed": "ProtocolHub constructor takes (plant, modbus_port, iec104_port, goose_iface, goose_gateway_port); manager now passes the GOOSE gateway port as a keyword (goose_gateway_port=...) so non-PV hubs no longer collided on 5880.",
+    "mqtt_fixed": "paho-mqtt v2 changed on_connect signature (5 args) and removed asyncio.coroutine (hbmqtt broken on Py3.12); publisher now uses version-tolerant callbacks, MQTT v3.1.1, and a reconnect thread.",
+    "known_issues_fixed": [
+      "GOOSE gateway port collision: non-PV simulators bound 5880 (PV's port) instead of 5881-5883 because the manager passed the port as the wrong positional argument.",
+      "Stop did not update plant.running: manager.stop_sim/start_sim now also call plant.set_running() so the HMI shows the correct state.",
+      "MQTT disconnected under paho v2: fixed callback signature + switched to a robust connect/loop_start reconnect loop; installed amqtt broker (hbmqtt incompatible with Python 3.12)."
+    ]
+  },
+  "notes": "For production, replace the Flask dev server with Gunicorn/uWSGI behind Nginx, add authentication and time-series storage. For real GOOSE on the wire, run as root so scapy can open raw sockets. The MQTT broker (amqtt) must be started separately (amqtt -c /tmp/broker.yaml) for live message streaming; without it, publishers degrade gracefully."
+}

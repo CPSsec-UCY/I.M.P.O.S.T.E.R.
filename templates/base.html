@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plant Control Center</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+<!-- ============================== HEADER ============================== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <span id="brand-svg"></span>
+      <div class="logo-text">
+        <strong id="brand-title">PLANT HMI</strong>
+        <span id="brand-sub">--</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="topbar-center">
+    <div class="clock-box">
+      <div class="clock-label">SIMULATION TIME</div>
+      <div class="clock-value" id="sim-time">--:--:--</div>
+      <div class="clock-date" id="sim-date">----</div>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="status-pills">
+      <span class="pill" id="run-pill"><i class="dot"></i><span id="run-text">RUNNING</span></span>
+      <span class="pill" id="grid-pill"><i class="dot"></i><span id="grid-text">GRID OK</span></span>
+      <span class="pill" id="scenario-pill">NORMAL</span>
+      <span class="pill" id="speed-pill">x120</span>
+    </div>
+    <div class="comm">
+      <span class="led online" id="comm-led"></span>
+      <span class="comm-text">SCADA LINK</span>
+    </div>
+    <div class="target-select">
+      <select id="profile-select" title="Select emulated plant target"></select>
+      <span class="mode-toggle" title="Simulation clock vs real wall-clock time">
+        <button type="button" id="mode-sim" class="mode-btn active">SIM</button>
+        <button type="button" id="mode-live" class="mode-btn">LIVE</button>
+      </span>
+    </div>
+    <a class="btn ghost small" href="/dashboard" style="margin-left:8px">FLEET</a>
+  </div>
+</header>
+
+<!-- ============================== KPI STRIP (JS-rendered per plant kind) ============================== -->
+<section class="kpi-strip" id="kpi-strip"></section>
+
+<!-- ============================== MAIN GRID ============================== -->
+<main class="layout">
+  <div class="col-main">
+    <!-- Time-series chart (JS-rendered per plant kind) -->
+    <section class="panel">
+      <div class="panel-head"><h2 id="chart-title">Trend &mdash; Today</h2>
+        <div class="legend" id="chart-legend"></div></div>
+      <canvas id="chart-canvas" height="240"></canvas>
+    </section>
+
+    <!-- Secondary visual (JS-rendered per plant kind: SLD / turbines / water process / wellhead) -->
+    <section class="panel">
+      <div class="panel-head"><h2 id="viz-title">Process Diagram</h2>
+        <span class="panel-tag" id="viz-tag"></span></div>
+      <div id="viz-host"></div>
+    </section>
+
+    <!-- Unit cards (JS-rendered per plant kind) -->
+    <section class="panel">
+      <div class="panel-head"><h2 id="unit-title">Units</h2>
+        <span class="panel-tag" id="unit-tag"></span></div>
+      <div class="inv-grid" id="unit-grid"></div>
+    </section>
+
+    <!-- Plant Equipment (balance-of-plant / substation) -->
+    <section class="panel">
+      <div class="panel-head"><h2>Plant Equipment</h2>
+        <span class="panel-tag" id="eq-count">0 items</span>
+        <button class="btn ghost small" id="btn-eq-toggle">SHOW / HIDE</button>
+      </div>
+      <div class="eq-body" id="eq-body" hidden>
+        <div class="eq-legend">
+          <span class="eq-kind eq-electrical">Electrical</span>
+          <span class="eq-kind eq-process">Process</span>
+        </div>
+        <table class="mb-table eq-table">
+          <thead><tr><th>ID</th><th>Equipment</th><th>Type</th><th>Status</th><th>Telemetry</th><th>Control</th></tr></thead>
+          <tbody id="eq-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <aside class="col-side">
+    <!-- Supervisory control (JS-populated per plant kind) -->
+    <section class="panel">
+      <div class="panel-head"><h2>Supervisory Control</h2></div>
+      <div class="controls" id="controls-host"></div>
+    </section>
+
+    <!-- Protocols -->
+    <section class="panel">
+      <div class="panel-head"><h2>Substation Protocols</h2></div>
+      <div class="proto-list">
+        <div class="proto" data-proto="modbus">
+          <span class="proto-badge m">M</span>
+          <div class="proto-body"><strong>Modbus TCP</strong>
+            <span class="proto-sub">RTU poll &middot; <span id="proto-mb">OK</span></span></div>
+          <span class="led online" id="led-mb"></span>
+        </div>
+        <div class="proto" data-proto="iec104">
+          <span class="proto-badge i">I</span>
+          <div class="proto-body"><strong>IEC 60870-5-104</strong>
+            <span class="proto-sub">SCADA &middot; <span id="proto-104">ONLINE</span></span></div>
+          <span class="led online" id="led-104"></span>
+        </div>
+        <div class="proto" data-proto="goose">
+          <span class="proto-badge g">G</span>
+          <div class="proto-body"><strong>IEC 61850 GOOSE</strong>
+            <span class="proto-sub">Trips <span id="proto-goose">0</span></span></div>
+          <span class="led online" id="led-goose"></span>
+        </div>
+        <div class="proto" data-proto="mbus">
+          <span class="proto-badge m">M</span>
+          <div class="proto-body"><strong>Revenue Meter / M-Bus</strong>
+            <span class="proto-sub">Export <span id="proto-mbus">0 MWh</span></span></div>
+          <span class="led online" id="led-mbus"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alarms -->
+    <section class="panel alarm-panel">
+      <div class="panel-head"><h2>Alarm Log</h2>
+        <span class="panel-tag alarm-count" id="alarm-count">0</span></div>
+      <div class="alarm-list" id="alarm-list"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ============================== MODBUS MODAL ============================== -->
+<section class="panel modbus-panel">
+  <div class="panel-head"><h2>SCADA Register Map (Modbus TCP)</h2>
+    <button class="btn ghost small" id="btn-mb-toggle">SHOW / HIDE</button></div>
+  <div class="modbus-body" id="modbus-body" hidden>
+    <div class="mb-cols">
+      <div class="mb-col mb-plant">
+        <h3>Holding Registers &mdash; Plant Summary <span class="muted">(4xxxx)</span></h3>
+        <table class="mb-table"><thead><tr><th>Addr</th><th>Signal</th><th>Raw</th><th>Eng. Unit</th></tr></thead>
+          <tbody id="mb-regs-plant"></tbody></table>
+      </div>
+      <div class="mb-col mb-coils">
+        <h3>Coils (0xxxx)</h3>
+        <table class="mb-table"><thead><tr><th>Addr</th><th>Signal</th><th>State</th></tr></thead>
+          <tbody id="mb-coils"></tbody></table>
+      </div>
+    </div>
+    <div class="mb-inv">
+      <div class="mb-inv-head">
+        <h3>Per-Unit Holding Registers <span class="muted" id="mb-inv-count"></span></h3>
+        <button class="btn ghost small" id="btn-mb-inv-toggle">COLLAPSE</button>
+      </div>
+      <div class="mb-inv-scroll" id="mb-inv-scroll">
+        <table class="mb-table"><thead><tr><th>Addr</th><th>Signal</th><th>Raw</th><th>Eng. Unit</th></tr></thead>
+          <tbody id="mb-regs-inv"></tbody></table>
+      </div>
+    </div>
+    <div class="mb-inv">
+      <div class="mb-inv-head">
+        <h3>Equipment Holding Registers <span class="muted" id="mb-equip-count"></span></h3>
+        <span class="muted">41xxx &middot; status + analog telemetry</span>
+      </div>
+      <div class="mb-inv-scroll">
+        <table class="mb-table"><thead><tr><th>Addr</th><th>Signal</th><th>Raw</th><th>Eng. Unit</th></tr></thead>
+          <tbody id="mb-regs-equip"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  Industrial Simulator Ecosystem HMI &middot; Physical plant simulators for academic research &amp; OT operator training
+  &middot; Data is simulated, not from a real facility.
+</footer>
+
+<script src="{{ url_for('static', filename='js/hmi.js') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulator Fleet &mdash; Industrial Ecosystem Control Center</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+        <circle cx="12" cy="12" r="5" fill="#36d399"/>
+        <g stroke="#36d399" stroke-width="2" stroke-linecap="round">
+          <line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/>
+          <line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/>
+          <line x1="4.2" y1="4.2" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.8" y2="19.8"/>
+          <line x1="4.2" y1="19.8" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.8" y2="4.2"/>
+        </g>
+      </svg>
+      <div class="logo-text">
+        <strong>FLEET CONTROL</strong>
+        <span>Industrial Simulator Ecosystem</span>
+      </div>
+    </div>
+  </div>
+  <div class="topbar-center">
+    <div class="clock-box">
+      <div class="clock-label">FLEET TIME</div>
+      <div class="clock-value" id="fleet-time">--:--:--</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="status-pills">
+      <span class="pill" id="fleet-run-pill"><i class="dot"></i><span id="fleet-run-text">0 / 0 RUNNING</span></span>
+    </div>
+    <div class="target-select">
+      <a class="btn ghost small" href="/">OPEN HMI &rarr;</a>
+    </div>
+  </div>
+</header>
+
+<section class="fleet-toolbar">
+  <h2>Simulator Fleet</h2>
+  <div class="toolbar-actions">
+    <button class="btn small" id="btn-runall">RUN ALL</button>
+    <button class="btn small" id="btn-stopall">STOP ALL</button>
+    <button class="btn ghost small" id="btn-refresh">REFRESH</button>
+  </div>
+</section>
+
+<main class="fleet-grid" id="fleet-grid">
+  <div class="fleet-empty" id="fleet-empty">Loading fleet&hellip;</div>
+</main>
+
+<footer class="footer">
+  Simulator Fleet &middot; PV / Water / Wind / Oil &amp; Gas digital twins emitting Modbus TCP,
+  IEC 60870-5-104, IEC 61850 GOOSE and MQTT &middot; For academic research &amp; training.
+</footer>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
