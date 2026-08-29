@@ -325,7 +325,7 @@ If you use this simulator in teaching or research, please cite:
 ```bibtex
 @misc{imposter,
   title  = {IMPOSTER: Industrial Modelling \& Protocol Simulation Testbed for Operator Training, Education \& Research},
-  author = {CPSsec-UCY},
+  author = {Vasilis Ieropoulos},
   year   = {2026},
   note   = {https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R.},
   licence = {EUPL-1.2}
