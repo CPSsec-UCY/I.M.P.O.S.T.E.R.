@@ -162,8 +162,8 @@ per plant kind and runs the animation loop (rotors, flow lines, flames, bubbles)
 ### Installation
 
 ```bash
-git clone https://github.com/CPSsec-UCY/imposter.git
-cd imposter
+git clone https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R..git
+cd I.M.P.O.S.T.E.R.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -278,7 +278,7 @@ If you use this simulator in teaching or research, please cite:
   title  = {Industrial Simulator Ecosystem: Multi-Plant Digital Twins with OT Protocol Emulation},
   author = {CPSsec-UCY},
   year   = {2026},
-  note   = {https://github.com/CPSsec-UCY/imposter},
+  note   = {https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R.},
   licence = {EUPL-1.2}
 }
 ```
