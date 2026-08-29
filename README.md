@@ -1,42 +1,13 @@
-<<<<<<< HEAD
-# <Project Name>
+# IMPOSTER
 
-Short description of the project.
-
-## Governance and Policies
-
-This repository follows the organisation governance standards. Please read:
-
-- License: [LICENSE](./LICENSE)
-- Code of Conduct: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
-
-## Maintainers
-
-- Owner name: 
-- Owner email: 
-
-> Replace blank owner fields during repository initialization.
-
-## Quick Start
-
-Add project-specific setup and usage instructions here.
-
-## Required Post-Initialization Updates
-
-Before first release, update all of the following:
-
-1. Replace `<Project Name>` with the real project title.
-2. Replace the short description with project-specific purpose.
-3. Fill owner name and owner email.
-4. Verify `LICENSE` is the approved organisation license text.
-5. Verify `CODE_OF_CONDUCT.md` points to the approved organisation code.
-=======
-# Industrial Simulator Ecosystem
+**I**ndustrial **M**odelling & **P**rotocol **S**imulation **T**estbed for **O**perator Training, **E**ducation & **R**esearch
 
 > Licensed under the EUPL &middot; A multi-plant digital-twin control centre with
 > real OT protocol emulation, for academic research and OT operator training.
+> (Codename: *IMPOSTER* — because every simulator in here is a convincing imposter
+> of a real plant.)
 
-The **Industrial Simulator Ecosystem** is a control-room environment that runs
+**IMPOSTER** — the *Industrial Simulator Ecosystem* — is a control-room environment that runs
 several physically-grounded plant simulators at once and exposes them through the
 same industrial protocols a real site would use (Modbus TCP, IEC 60870-5-104,
 IEC 61850 GOOSE and MQTT). A web HMI renders an **immersive, plant-specific
@@ -63,6 +34,7 @@ process view** for each facility — you are effectively standing inside the pla
 - [Industrial protocols](#industrial-protocols)
 - [Architecture](#architecture)
 - [Getting started](#getting-started)
+- [Docker](#docker)
 - [Usage](#usage)
 - [REST API](#rest-api)
 - [Project structure](#project-structure)
@@ -191,8 +163,8 @@ per plant kind and runs the animation loop (rotors, flow lines, flames, bubbles)
 ### Installation
 
 ```bash
-git clone https://github.com/CPSsec-UCY/industrial_ecosystem.git
-cd industrial_ecosystem
+git clone https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R..git
+cd I.M.P.O.S.T.E.R.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -309,7 +281,8 @@ See [Architecture](#architecture). Key entry points: `app.py` (backend),
   keep them unique per simulator.
 - **Weather** is fetched automatically per `lat`/`lon` in the plant snapshot;
   no key required. Set `live_mode` via the SIM/LIVE toggle.
-- **MQTT** broker defaults to `localhost:1883` and is optional.
+- **MQTT** broker defaults to `localhost:1883` and is optional; override with
+  `MQTT_BROKER` / `MQTT_PORT` / `MQTT_ENABLED`.
 
 ---
 
@@ -341,7 +314,7 @@ EUPL-1.2; Derivative Works must keep the EUPL notice.
 ## Licence
 
 Distributed under the **European Union Public Licence v. 1.2 (EUPL-1.2)**.
-See [LICENSE](LICENSE).
+See [LICENSE](LICENSE) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ---
 
@@ -350,11 +323,11 @@ See [LICENSE](LICENSE).
 If you use this simulator in teaching or research, please cite:
 
 ```bibtex
-@misc{industrial_simulator_ecosystem,
-  title  = {Industrial Simulator Ecosystem: Multi-Plant Digital Twins with OT Protocol Emulation},
-  author = {Vasilis Ieropoulos},
+@misc{imposter,
+  title  = {IMPOSTER: Industrial Modelling \& Protocol Simulation Testbed for Operator Training, Education \& Research},
+  author = {CPSsec-UCY},
   year   = {2026},
-  note   = {https://github.com/CPSsec-UCY/industrial_ecosystem},
+  note   = {https://github.com/CPSsec-UCY/I.M.P.O.S.T.E.R.},
   licence = {EUPL-1.2}
 }
 ```
@@ -365,4 +338,3 @@ If you use this simulator in teaching or research, please cite:
 
 Built by the CPSsec-UCY group for cyber-physical security education and
 operator training. Weather data by [Open-Meteo](https://open-meteo.com).
->>>>>>> 93b0a80 (Initial commit: multi-plant industrial simulator ecosystem with OT protocol emulation and immersive HMI)
